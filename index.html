@@ -1,0 +1,652 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Java Warm-up Quiz</title>
+<!--
+  JAVA WARM-UP QUIZ – a live classroom quiz (Kahoot style)
+  ---------------------------------------------------------
+  ONE-TIME SETUP: paste your Firebase settings into FIREBASE_CONFIG below
+  (see the setup steps given with this file), then upload this file to GitHub Pages.
+
+  HOST (lecturer):   open the site address on the projector PC and click "Host a game".
+  PLAYERS (students): scan the QR code, type a name, and play.
+-->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Lexend:wght@400;600;800&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
+<style>
+:root{
+  --stage:#14284b; --stage2:#1d3a6b; --ink:#16233b; --paper:#f4f6fb; --muted:#5f6b82;
+  --a0:#e5484d; --a1:#2f6fd6; --a2:#d99a00; --a3:#1f9d55;
+  --gold:#f2c94c; --silver:#c9d1dc; --bronze:#d9925b;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{font-family:'Lexend',Arial,sans-serif;background:var(--stage);color:#fff;
+  padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left)}
+button{font-family:inherit;cursor:pointer;border:none}
+button:focus-visible,input:focus-visible{outline:4px solid var(--gold);outline-offset:3px}
+.screen{display:none;min-height:100vh;flex-direction:column}
+.screen.on{display:flex}
+.center{align-items:center;justify-content:center;text-align:center;padding:24px}
+.brand{font-weight:800;font-size:clamp(36px,6vw,72px);line-height:1.05;letter-spacing:-1px}
+.brand small{display:block;font-weight:400;font-size:clamp(16px,2vw,22px);color:#b8c6e0;letter-spacing:0;margin-top:12px}
+.btn{background:#fff;color:var(--ink);font-weight:800;font-size:20px;padding:16px 30px;border-radius:12px;box-shadow:0 5px 0 #9fb0cc}
+.btn:active{transform:translateY(3px);box-shadow:0 2px 0 #9fb0cc}
+.btn.dark{background:var(--stage2);color:#fff;box-shadow:0 5px 0 #0c1a33}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.row{display:flex;gap:14px;flex-wrap:wrap;justify-content:center}
+.card{background:#fff;color:var(--ink);border-radius:16px;padding:28px;width:min(440px,100%)}
+.card h2{font-size:24px;margin-bottom:14px}
+.card input{width:100%;font-family:inherit;font-size:22px;padding:14px;border:2px solid #cfd7e6;border-radius:10px;margin-bottom:14px;text-align:center}
+.card .btn{width:100%;background:var(--stage);color:#fff;box-shadow:0 5px 0 #0a1630}
+.err{color:#b42318;min-height:22px;font-size:15px;margin-top:8px}
+.note{color:#b8c6e0;font-size:15px;margin-top:18px;max-width:560px}
+
+/* ---------- HOST LOBBY ---------- */
+.lobby{display:grid;grid-template-columns:minmax(300px,420px) 1fr;gap:36px;padding:40px;flex:1}
+.joinbox{background:#fff;color:var(--ink);border-radius:20px;padding:26px;text-align:center;align-self:start}
+.joinbox p{font-size:18px;color:var(--muted)}
+.joinbox .code{font-size:58px;font-weight:800;letter-spacing:6px;margin:4px 0 12px;color:var(--ink)}
+#qr{display:flex;justify-content:center;margin:10px auto 14px}
+#qr img,#qr canvas{width:260px!important;height:260px!important}
+.joinbox .url{font-family:'JetBrains Mono',monospace;font-size:13px;word-break:break-all;color:var(--muted)}
+.players h2{font-size:34px;margin-bottom:6px}
+.players .count{color:#b8c6e0;font-size:18px;margin-bottom:20px}
+.names{display:flex;flex-wrap:wrap;gap:10px}
+.names span{background:var(--stage2);padding:10px 16px;border-radius:10px;font-size:20px;font-weight:600;animation:pop .25s ease-out}
+@keyframes pop{from{transform:scale(.6);opacity:0}to{transform:scale(1);opacity:1}}
+
+/* ---------- HOST QUESTION ---------- */
+.qtop{display:flex;justify-content:space-between;align-items:center;padding:22px 36px;color:#b8c6e0;font-size:20px}
+.qtext{background:#fff;color:var(--ink);margin:0 36px;border-radius:16px;padding:26px 30px;font-size:clamp(24px,2.6vw,38px);font-weight:600;line-height:1.3;text-align:center}
+.qmid{flex:1;display:flex;align-items:center;justify-content:center;gap:30px;padding:20px 36px}
+.timer{width:120px;height:120px;border-radius:50%;background:var(--stage2);display:flex;align-items:center;justify-content:center;font-size:48px;font-weight:800;flex:none}
+.codebox{background:#0e1a30;border:2px solid #2c4a7c;border-radius:14px;padding:20px 26px;font-family:'JetBrains Mono',monospace;font-size:clamp(18px,1.7vw,26px);line-height:1.55;white-space:pre;overflow-x:auto;max-width:100%;text-align:left;color:#e8eefb}
+.answered{width:120px;text-align:center;font-size:44px;font-weight:800;flex:none}
+.answered small{display:block;font-size:16px;font-weight:400;color:#b8c6e0}
+.opts{display:grid;grid-template-columns:1fr 1fr;gap:14px;padding:0 36px 30px}
+.opt{display:flex;align-items:center;gap:18px;padding:22px 24px;border-radius:12px;font-size:clamp(20px,2vw,30px);font-weight:600;color:#fff;min-height:96px;transition:opacity .3s}
+.opt .sh{font-size:30px;width:36px;text-align:center;flex:none}
+.opt .n{margin-left:auto;font-size:26px;font-weight:800}
+.opt.dim{opacity:.28}
+.opt.right{outline:6px solid #fff;outline-offset:-6px}
+.c0{background:var(--a0)}.c1{background:var(--a1)}.c2{background:var(--a2)}.c3{background:var(--a3)}
+.mono{font-family:'JetBrains Mono',monospace}
+.hostbar{display:flex;justify-content:flex-end;gap:12px;padding:0 36px 26px}
+
+/* ---------- SCOREBOARD ---------- */
+.board{width:min(760px,92vw);margin:10px auto}
+.board .r{display:flex;align-items:center;gap:16px;background:#fff;color:var(--ink);border-radius:12px;padding:14px 22px;margin-bottom:10px;font-size:24px;font-weight:600}
+.board .r b{width:36px;color:var(--muted)}
+.board .r .s{margin-left:auto;font-weight:800}
+h1.title{font-size:clamp(32px,4vw,52px);font-weight:800;text-align:center;margin:30px 0 16px}
+
+/* ---------- FINAL ---------- */
+.podium{display:flex;justify-content:center;align-items:flex-end;gap:18px;margin:18px auto 6px;width:min(900px,94vw)}
+.pod{flex:1;border-radius:16px 16px 0 0;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;padding:20px 12px;color:var(--ink);text-align:center}
+.pod .place{font-size:52px;font-weight:800;line-height:1}
+.pod .nm{font-size:clamp(20px,2.2vw,30px);font-weight:800;margin-top:10px;word-break:break-word}
+.pod .pts{font-size:20px;margin-top:6px}
+.p1{background:var(--gold);height:330px;order:2}
+.p2{background:var(--silver);height:260px;order:1}
+.p3{background:var(--bronze);height:210px;order:3}
+.next5{width:min(700px,92vw);margin:18px auto 10px;border-collapse:collapse;background:#fff;color:var(--ink);border-radius:12px;overflow:hidden;font-size:20px}
+.next5 th{background:#dfe6f2;text-align:left;padding:10px 16px;font-size:16px;color:var(--muted)}
+.next5 td{padding:10px 16px;border-top:1px solid #e6ebf3}
+.next5 td:last-child,.next5 th:last-child{text-align:right}
+.finalbar{display:flex;gap:12px;justify-content:center;flex-wrap:wrap;margin:16px 0 30px}
+.stats{width:min(980px,94vw);margin:0 auto 40px;border-collapse:collapse;background:#fff;color:var(--ink);border-radius:12px;overflow:hidden;font-size:16px}
+.stats th{background:#dfe6f2;text-align:left;padding:8px 12px}
+.stats td{padding:8px 12px;border-top:1px solid #e6ebf3;vertical-align:top}
+.bar{height:12px;border-radius:6px;background:#e6ebf3;overflow:hidden;min-width:120px}
+.bar i{display:block;height:100%;background:var(--a3)}
+
+/* ---------- PLAYER (phone) ---------- */
+.ptop{display:flex;justify-content:space-between;align-items:center;padding:14px 18px;background:var(--stage2);font-weight:600}
+.pbody{flex:1;display:flex;flex-direction:column;padding:16px;gap:14px}
+.pq{font-size:17px;color:#b8c6e0;text-align:center}
+.pbtns{flex:1;display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.pbtns.two{grid-template-columns:1fr}
+.pbtn{border-radius:14px;color:#fff;font-size:18px;font-weight:600;padding:14px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;min-height:120px;word-break:break-word}
+.pbtn .sh{font-size:34px}
+.pbtn:active{transform:scale(.97)}
+.big{font-size:34px;font-weight:800;margin-bottom:8px}
+.result{border-radius:18px;padding:30px 22px;width:min(420px,100%)}
+.result.good{background:var(--a3)}.result.bad{background:var(--a0)}.result.wait{background:var(--stage2)}
+.result .pts{font-size:22px;margin-top:6px}
+.spinner{width:48px;height:48px;border:5px solid #ffffff44;border-top-color:#fff;border-radius:50%;animation:spin 1s linear infinite;margin:18px auto}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+@media (max-width:820px){
+  .lobby{grid-template-columns:1fr;padding:20px}
+  .opts{grid-template-columns:1fr;padding:0 16px 20px}
+  .qtext{margin:0 16px}.qmid{flex-direction:column;padding:16px}
+}
+.mutebtn{position:fixed;top:calc(12px + env(safe-area-inset-top));right:14px;z-index:60;background:var(--stage2);color:#fff;font-size:15px;font-weight:600;padding:9px 14px;border-radius:10px;box-shadow:0 3px 0 #0c1a33}
+.credit{position:fixed;left:0;right:0;bottom:0;padding:6px 12px calc(6px + env(safe-area-inset-bottom));text-align:center;font-size:13px;color:#b8c6e0;background:rgba(20,40,75,.92);z-index:50}
+.credit b{color:#fff;font-weight:600}
+body{padding-bottom:calc(32px + env(safe-area-inset-bottom))}
+.screen{min-height:calc(100vh - 32px)}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+
+<!-- ============ HOME ============ -->
+<section class="screen center on" id="s-home">
+  <div class="brand">Java Warm-up Quiz<small>30 questions on Java basics – let’s see what you already know</small></div>
+  <div class="row" style="margin-top:36px">
+    <button class="btn" id="b-host">Host a game</button>
+    <button class="btn dark" id="b-joinhome">Join a game</button>
+  </div>
+  <p class="note" id="setupwarn" hidden></p>
+</section>
+
+<!-- ============ PLAYER: JOIN ============ -->
+<section class="screen center" id="s-join">
+  <div class="card">
+    <h2>Join the quiz</h2>
+    <input id="i-code" inputmode="numeric" maxlength="6" placeholder="Game PIN" autocomplete="off">
+    <input id="i-name" maxlength="18" placeholder="Your name" autocomplete="off">
+    <button class="btn" id="b-join">Join</button>
+    <div class="err" id="join-err"></div>
+  </div>
+</section>
+
+<!-- ============ PLAYER: GAME ============ -->
+<section class="screen" id="s-play">
+  <div class="ptop"><span id="p-name"></span><span id="p-score">0</span></div>
+  <div class="pbody" id="p-body"></div>
+</section>
+
+<!-- ============ HOST: LOBBY ============ -->
+<section class="screen" id="s-lobby">
+  <div class="lobby">
+    <div class="joinbox">
+      <p>Scan to join, or enter the Game PIN</p>
+      <div id="qr"></div>
+      <div class="code" id="l-code"></div>
+      <div class="url" id="l-url"></div>
+    </div>
+    <div class="players">
+      <h2>Waiting for players…</h2>
+      <div class="count" id="l-count">0 players joined</div>
+      <div class="names" id="l-names"></div>
+      <div class="row" style="justify-content:flex-start;margin-top:30px">
+        <button class="btn" id="b-start" disabled>Start the quiz</button>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ HOST: QUESTION / REVEAL ============ -->
+<section class="screen" id="s-q">
+  <div class="qtop"><span id="h-num"></span><span id="h-type"></span><span>PIN <b id="h-pin"></b></span></div>
+  <div class="qtext" id="h-text"></div>
+  <div class="qmid">
+    <div class="timer" id="h-timer">20</div>
+    <div id="h-code"></div>
+    <div class="answered" id="h-ans">0<small>answers</small></div>
+  </div>
+  <div class="opts" id="h-opts"></div>
+  <div class="hostbar">
+    <button class="btn dark" id="b-skip">Show answer now</button>
+    <button class="btn" id="b-next" hidden>Next</button>
+  </div>
+</section>
+
+<!-- ============ HOST: SCOREBOARD ============ -->
+<section class="screen" id="s-board">
+  <h1 class="title">Scoreboard</h1>
+  <div class="board" id="board"></div>
+  <div class="row" style="margin:16px 0 30px"><button class="btn" id="b-next2">Next question</button></div>
+</section>
+
+<!-- ============ HOST: FINAL ============ -->
+<section class="screen" id="s-final">
+  <h1 class="title">Final results</h1>
+  <div class="podium" id="podium"></div>
+  <table class="next5" id="next5"></table>
+  <div class="finalbar">
+    <button class="btn" id="b-csv">Download all results (CSV)</button>
+    <button class="btn dark" id="b-stats">Show class results by question</button>
+    <button class="btn dark" id="b-new">New game</button>
+  </div>
+  <div id="statswrap" hidden></div>
+</section>
+
+<button class="mutebtn" id="b-mute" hidden aria-pressed="false">Music: on</button>
+<footer class="credit">Developed by <b>Razeen Ramzy</b></footer>
+
+<script>
+/* =====================================================================
+   1) PASTE YOUR FIREBASE SETTINGS HERE (from Firebase console → Project
+      settings → Your apps → Web app → "firebaseConfig").
+      It MUST include databaseURL.
+   ===================================================================== */
+const FIREBASE_CONFIG = {
+  apiKey: "AIzaSyB_51_vMnJL4yqPXZ2EeG5OUawMzQUgiI0",
+  authDomain: "java-quiz-5bd48.firebaseapp.com",
+  databaseURL: "https://java-quiz-5bd48-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId: "java-quiz-5bd48",
+  storageBucket: "java-quiz-5bd48.firebasestorage.app",
+  messagingSenderId: "633405575771",
+  appId: "1:633405575771:web:d5b795c13f78bad980a57e"
+};
+
+/* =====================================================================
+   2) QUESTIONS  (type: "mcq" = 4 options, "tf" = True/False)
+      Answers are kept separately (encoded) so they are not shown to players.
+   ===================================================================== */
+const QUESTIONS = [
+ {type:"mcq", time:20, q:"Which company first developed Java in the mid-1990s?", opts:["Microsoft Corporation","Sun Microsystems","Apple Computer Inc.","IBM Research Labs"]},
+ {type:"mcq", time:20, q:"In which year was Java 1.0 first released?", opts:["1995","1991","2000","2005"]},
+ {type:"mcq", time:20, q:"Java was first designed as a language for…", opts:["Mobile phone games","Web page design","Interactive TV","Bank mainframes"]},
+ {type:"tf",  time:15, q:"Java is open-source and free to download and use.", opts:["True","False"]},
+ {type:"mcq", time:20, q:"What lets the same Java program run on Windows, Mac, Linux and Raspberry Pi?", opts:["The IDE","The CPU","The OS","The JVM"]},
+ {type:"mcq", time:20, q:"We install JDK 21 (LTS). What does LTS stand for?", opts:["Latest Test Stage","Long-Term Support","Light Tool Set","Local Test Server"]},
+ {type:"mcq", time:25, q:"Why do developers install the JDK and not only the JRE?", opts:["JRE has no libraries","JDK runs code faster","JDK has the compiler","JRE needs internet"]},
+ {type:"mcq", time:20, q:"What is the only language a computer’s processor understands directly?", opts:["Java source code","Plain English text","Pseudocode outlines","Binary machine code"]},
+ {type:"mcq", time:20, q:"Which translator converts the WHOLE program before it runs and shows all errors together?", opts:["Compiler","Interpreter","Assembler","Debugger"]},
+ {type:"mcq", time:20, q:"Which translator converts assembly language (like MOV, ADD) into machine code?", opts:["Compiler","Linker","Assembler","Interpreter"]},
+ {type:"tf",  time:15, q:"A compiler stops at the first error and shows only that one error.", opts:["True","False"]},
+ {type:"mcq", time:25, q:"Java belongs to which generation of programming languages?", opts:["1st – machine code","2nd – assembly","3rd – high-level","4th – query (SQL)"]},
+ {type:"mcq", time:20, q:"Which generation of language uses short codes (mnemonics) like MOV and ADD?", opts:["1st generation","2nd generation","3rd generation","5th generation"]},
+ {type:"mcq", time:20, q:"Which of these is a 4th generation language (4GL)?", opts:["Java","C++","COBOL","SQL"]},
+ {type:"mcq", time:25, q:"Which line correctly creates an empty class named Pro1?", opts:["public Pro1 class { }","public class Pro1 { }","class public Pro1 { }","public class Pro1 ( )"], monoOpts:true},
+ {type:"mcq", time:20, q:"A file contains  public class Pro1 . What must the file be named?", opts:["pro1.java","Pro1.class","Pro1.txt","Pro1.java"], monoOpts:true},
+ {type:"mcq", time:20, q:"When you run a Java program, where does it start running?", opts:["The main method","The first class","The last method","The import line"]},
+ {type:"mcq", time:20, q:"How many access modifiers does Java have?", opts:["2","3","4","5"]},
+ {type:"mcq", time:20, q:"Which access modifier lets a member be used ONLY inside its own class?", opts:["public","protected","default","private"], monoOpts:true},
+ {type:"mcq", time:20, q:"Which access level does Java use when you write NO modifier at all?", opts:["public","default","private","protected"], monoOpts:true},
+ {type:"mcq", time:20, q:"What does System.out.println() do after it prints the text?", opts:["Moves to a new line","Clears the whole screen","Stops the program","Saves it to a file"]},
+ {type:"mcq", time:25, q:"What does this line print?", code:'System.out.println("5 + 3");', opts:["8","5 + 3","53","Error"], monoOpts:true},
+ {type:"mcq", time:20, q:"A program where the user types commands in Command Prompt is a…", opts:["GUI program","Web program","CLI program","App program"]},
+ {type:"mcq", time:20, q:"Which Java tools are used later to build GUI programs with windows and buttons?", opts:["JavaFX and Swing","javac and JVM","JDK and JRE","Scanner and Math"]},
+ {type:"tf",  time:15, q:"Java is case-sensitive, so  Hello  and  hello  are different.", opts:["True","False"]},
+ {type:"mcq", time:20, q:"Which symbol starts a multi-line comment in Java?", opts:["//","/*","#","<!--"], monoOpts:true},
+ {type:"mcq", time:20, q:"In  public static void main , what does  void  mean?", opts:["Method is public","Returns no value","Runs only once","Has no parameters"]},
+ {type:"mcq", time:20, q:"How much memory does an  int  use in Java?", opts:["1 byte","2 bytes","4 bytes","8 bytes"]},
+ {type:"mcq", time:20, q:"Which data type can store the LARGEST whole numbers?", opts:["int","short","byte","long"], monoOpts:true},
+ {type:"mcq", time:25, q:"What does this code print?", code:"int myNum;\nmyNum = 15;\nmyNum = 20;\nSystem.out.println(myNum);", opts:["15","20","35","Error"]}
+];
+const ANSWER_KEY = "W1syLCA1LCAxMSwgMTMsIDIwLCAyMiwgMjcsIDMyLCAzMywgMzksIDQyLCA0NywgNTAsIDU2LCA1OCwgNjQsIDY1LCA3MSwgNzYsIDc4LCA4MSwgODYsIDkxLCA5MywgOTcsIDEwMiwgMTA2LCAxMTEsIDExNiwgMTE4XV0=";
+function correctIndex(i){ return JSON.parse(atob(ANSWER_KEY))[0][i] - i*4 - 1; }
+
+/* ===================================================================== */
+const SHAPES = ["▲","◆","●","■"];
+const $ = id => document.getElementById(id);
+const show = id => { document.querySelectorAll('.screen').forEach(s=>s.classList.remove('on')); $(id).classList.add('on'); window.scrollTo(0,0); };
+const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+
+let db = null, offset = 0;
+const configured = !Object.values(FIREBASE_CONFIG).some(v => String(v).includes("PASTE_HERE"));
+if (configured && window.firebase) {
+  firebase.initializeApp(FIREBASE_CONFIG);
+  db = firebase.database();
+  db.ref('.info/serverTimeOffset').on('value', s => offset = s.val() || 0);
+} else {
+  const w = $('setupwarn'); w.hidden = false;
+  w.textContent = window.firebase ? "Setup needed: paste your Firebase settings into FIREBASE_CONFIG inside index.html, then upload the file again."
+                                  : "Could not load Firebase. Check the internet connection and reload the page.";
+  $('b-host').disabled = true; $('b-joinhome').disabled = true;
+}
+const now = () => Date.now() + offset;
+const gameUrl = code => location.origin + location.pathname + '?game=' + code;
+
+/* ---------------- ROUTING ---------------- */
+const params = new URLSearchParams(location.search);
+if (params.get('game')) { $('i-code').value = params.get('game'); show('s-join'); setTimeout(()=>$('i-name').focus(),100); }
+$('b-joinhome').onclick = () => { show('s-join'); $('i-code').focus(); };
+$('b-host').onclick = hostCreate;
+
+/* =====================================================================
+   PLAYER
+   ===================================================================== */
+let P = {code:null, pid:null, name:null, lastQ:-1, answered:{}};
+$('b-join').onclick = playerJoin;
+$('i-name').addEventListener('keydown', e => { if (e.key === 'Enter') playerJoin(); });
+
+async function playerJoin(){
+  const code = $('i-code').value.trim(), name = $('i-name').value.trim();
+  const err = $('join-err'); err.textContent = '';
+  if (!/^\d{6}$/.test(code)) { err.textContent = 'Enter the 6-digit Game PIN shown on the screen.'; return; }
+  if (name.length < 2) { err.textContent = 'Enter your name (at least 2 letters).'; return; }
+  $('b-join').disabled = true;
+  try {
+    const g = await db.ref('games/'+code+'/state').once('value');
+    if (!g.exists()) { err.textContent = 'No game found with this PIN. Check the number on the screen.'; return; }
+    const saved = JSON.parse(localStorage.getItem('jq-'+code) || 'null');
+    let pid = saved && saved.name === name ? saved.pid : null;
+    if (!pid) {
+      if (g.val() !== 'lobby') { err.textContent = 'This game has already started. Ask your lecturer for the next game.'; return; }
+      pid = db.ref('games/'+code+'/players').push().key;
+      await db.ref('games/'+code+'/players/'+pid).set({name, score:0, joined: firebase.database.ServerValue.TIMESTAMP});
+      localStorage.setItem('jq-'+code, JSON.stringify({pid, name}));
+    }
+    P = {code, pid, name, lastQ:-1, answered:{}};
+    $('p-name').textContent = name;
+    show('s-play');
+    playerListen();
+  } catch(e) { err.textContent = 'Could not join: ' + e.message; }
+  finally { $('b-join').disabled = false; }
+}
+
+function playerListen(){
+  const g = db.ref('games/'+P.code);
+  g.child('players/'+P.pid+'/score').on('value', s => $('p-score').textContent = (s.val()||0) + ' pts');
+  g.on('value', snap => {
+    const G = snap.val(); if (!G) return;
+    const body = $('p-body');
+    if (G.state === 'lobby') {
+      body.innerHTML = `<div class="center" style="flex:1;display:flex;flex-direction:column"><div class="big">You’re in!</div><p>See your name on the screen?</p><div class="spinner"></div><p class="pq">Waiting for the quiz to start…</p></div>`;
+    } else if (G.state === 'question') {
+      if (P.answered[G.q]) return waitMsg('Answer locked in', 'Waiting for the others…');
+      if (P.lastQ === G.q && body.querySelector('.pbtns')) return;
+      P.lastQ = G.q;
+      const Q = QUESTIONS[G.q];
+      body.innerHTML = `<p class="pq">Question ${G.q+1} of ${QUESTIONS.length} – look at the screen</p>
+        <div class="pbtns ${Q.opts.length===2?'two':''}">${Q.opts.map((o,i)=>`<button class="pbtn c${i}" data-i="${i}"><span class="sh">${SHAPES[i]}</span><span class="${Q.monoOpts?'mono':''}">${esc(o)}</span></button>`).join('')}</div>`;
+      body.querySelectorAll('.pbtn').forEach(b => b.onclick = () => playerAnswer(G, +b.dataset.i));
+    } else if (G.state === 'reveal' || G.state === 'board') {
+      const last = (G.players && G.players[P.pid] && G.players[P.pid].last) || null;
+      const rank = rankOf(G.players, P.pid);
+      if (last && last.q === G.q && last.correct)
+        body.innerHTML = resultCard('good','Correct!',`+${last.points} points`,rank);
+      else if (last && last.q === G.q)
+        body.innerHTML = resultCard('bad','Not this time','The right answer is on the screen',rank);
+      else body.innerHTML = resultCard('bad','No answer','Be quicker next time!',rank);
+    } else if (G.state === 'final') {
+      const rank = rankOf(G.players, P.pid), total = Object.keys(G.players||{}).length;
+      body.innerHTML = `<div class="center" style="flex:1;display:flex;flex-direction:column"><div class="result wait"><div class="big">${rank<=3?'🏆 ':''}You finished #${rank}</div><p>out of ${total} players</p><p class="pts">Well done – check the screen for the podium!</p></div></div>`;
+    }
+  });
+}
+function resultCard(cls, title, sub, rank){
+  return `<div class="center" style="flex:1;display:flex;flex-direction:column"><div class="result ${cls}"><div class="big">${title}</div><p class="pts">${sub}</p><p style="margin-top:14px">You are in position #${rank}</p></div></div>`;
+}
+function waitMsg(t, s){
+  $('p-body').innerHTML = `<div class="center" style="flex:1;display:flex;flex-direction:column"><div class="result wait"><div class="big">${t}</div><div class="spinner"></div><p>${s}</p></div></div>`;
+}
+async function playerAnswer(G, choice){
+  if (P.answered[G.q]) return;
+  P.answered[G.q] = true;
+  waitMsg('Answer locked in', 'Waiting for the others…');
+  const t = Math.max(0, now() - (G.qStart || now()));
+  try { await db.ref(`games/${P.code}/answers/${G.q}/${P.pid}`).set({choice, t}); }
+  catch(e){ P.answered[G.q] = false; waitMsg('Could not send', 'Check your connection and wait for the next question.'); }
+}
+function rankOf(players, pid){
+  const list = Object.entries(players||{}).map(([id,p])=>({id,score:p.score||0})).sort((a,b)=>b.score-a.score);
+  return list.findIndex(x=>x.id===pid) + 1 || list.length;
+}
+
+
+/* =====================================================================
+   MUSIC – original background music made in the browser (no files needed).
+   Plays on the host/projector screen only.
+   ===================================================================== */
+const Music = (() => {
+  let ctx=null, master=null, comp=null, bus=null, verb=null, verbIn=null, timer=null, seq=null, nbuf=null;
+  let muted = false; try { muted = localStorage.getItem('jq-muted')==='1'; } catch(e){}
+  const N = (root, semi) => root * Math.pow(2, semi/12);
+  function init(){
+    if (ctx) { if (ctx.state==='suspended') ctx.resume(); return; }
+    const AC = window.AudioContext || window.webkitAudioContext; if (!AC) return;
+    ctx = new AC();
+    comp = ctx.createDynamicsCompressor(); comp.threshold.value=-14; comp.ratio.value=4; comp.attack.value=.004; comp.release.value=.2;
+    master = ctx.createGain(); master.gain.value = muted ? 0 : 0.9;
+    comp.connect(master); master.connect(ctx.destination);
+    bus = ctx.createGain(); bus.gain.value = .55; bus.connect(comp);
+    // small room reverb, made from decaying noise
+    verb = ctx.createConvolver(); const len=ctx.sampleRate*1.6, ir=ctx.createBuffer(2,len,ctx.sampleRate);
+    for(let c=0;c<2;c++){ const d=ir.getChannelData(c); for(let i=0;i<len;i++) d[i]=(Math.random()*2-1)*Math.pow(1-i/len,3); }
+    verb.buffer=ir; verbIn=ctx.createGain(); verbIn.gain.value=.22; verbIn.connect(verb); verb.connect(comp);
+    nbuf=ctx.createBuffer(1,ctx.sampleRate,ctx.sampleRate); const nd=nbuf.getChannelData(0); for(let i=0;i<nd.length;i++) nd[i]=Math.random()*2-1;
+  }
+  function out(node, dest, wet){ node.connect(dest||bus); if(wet) { const s=ctx.createGain(); s.gain.value=wet; node.connect(s); s.connect(verbIn); } }
+  // a basic voice: oscillator(s) -> filter (with envelope) -> amp envelope
+  function voice(f, t, dur, {type='sawtooth', vol=.1, cut=2000, cutEnd=null, att=.005, det=0, dest=null, wet=.15, glide=0}={}){
+    const g=ctx.createGain(), lp=ctx.createBiquadFilter(); lp.type='lowpass'; lp.Q.value=2;
+    lp.frequency.setValueAtTime(cut,t); if(cutEnd) lp.frequency.exponentialRampToValueAtTime(cutEnd,t+dur);
+    g.gain.setValueAtTime(0.0001,t); g.gain.exponentialRampToValueAtTime(vol,t+att); g.gain.exponentialRampToValueAtTime(0.0001,t+dur);
+    const oscs = det ? [-det, det] : [0];
+    oscs.forEach(d=>{ const o=ctx.createOscillator(); o.type=type; o.frequency.setValueAtTime(glide?f*glide:f,t);
+      if(glide) o.frequency.exponentialRampToValueAtTime(f,t+.06); o.detune.value=d; o.connect(lp); o.start(t); o.stop(t+dur+.05); });
+    lp.connect(g); out(g, dest, wet);
+  }
+  const tone = (f,t,dur,type='square',vol=.08,cut=2400,dest=null) => voice(f,t,dur,{type,vol,cut,dest,wet:.1});
+  const pluck = (f,t,vol=.07,dest=null) => voice(f,t,.32,{type:'sawtooth',vol,cut:3200,cutEnd:400,dest,wet:.25});
+  const pad = (fs,t,dur,vol=.035) => fs.forEach(f=>voice(f,t,dur,{type:'sawtooth',vol,cut:1100,att:.25,det:9,wet:.4}));
+  const bass = (f,t,dur,vol=.22) => { voice(f,t,dur,{type:'triangle',vol,cut:900,wet:0}); voice(f*2,t,dur*.6,{type:'square',vol:vol*.18,cut:700,wet:0}); };
+  function kick(t,vol=.6,dest=null){ const o=ctx.createOscillator(), g=ctx.createGain(); o.frequency.setValueAtTime(150,t); o.frequency.exponentialRampToValueAtTime(42,t+.14);
+    g.gain.setValueAtTime(vol,t); g.gain.exponentialRampToValueAtTime(0.001,t+.28); o.connect(g); out(g,dest,0); o.start(t); o.stop(t+.3); }
+  function noise(t,dur,vol,ftype,freq,{q=1,dest=null,wet=.12,swell=false}={}){
+    const s=ctx.createBufferSource(), f=ctx.createBiquadFilter(), g=ctx.createGain(); s.buffer=nbuf; f.type=ftype; f.frequency.value=freq; f.Q.value=q;
+    if(swell){ g.gain.setValueAtTime(0.0001,t); g.gain.exponentialRampToValueAtTime(vol,t+dur); g.gain.exponentialRampToValueAtTime(0.0001,t+dur+.05); }
+    else { g.gain.setValueAtTime(vol,t); g.gain.exponentialRampToValueAtTime(0.0001,t+dur); }
+    s.connect(f); f.connect(g); out(g,dest,wet); s.start(t); s.stop(t+dur+.1); }
+  const hat = (t,vol=.05,open=false,dest=null) => noise(t, open?.18:.035, vol, 'highpass', 8000, {dest,wet:.05});
+  const snare = (t,vol=.18,dest=null) => { noise(t,.16,vol,'bandpass',1800,{q:.7,dest,wet:.25}); voice(190,t,.08,{type:'triangle',vol:vol*.7,cut:3000,dest,wet:0}); };
+  const clap = (t,vol=.16,dest=null) => [0,.012,.024].forEach(o=>noise(t+o,.09,vol,'bandpass',1400,{q:1.2,dest,wet:.3}));
+  const cymbal = (t,vol=.12,dest=null) => noise(t,1.6,vol,'highpass',6000,{dest,wet:.4});
+
+  const MAJ=[0,4,7,12], MIN=[0,3,7,12];
+  const SONGS = {
+    // bright, happy lobby groove: C – G – Am – F
+    lobby:{bpm:112, fn(s,t,d){ const bar=Math.floor(s/16)%4, st=s%16;
+      const ch=[[130.81,MAJ],[98,MAJ],[110,MIN],[87.31,MAJ]][bar], r=ch[0];
+      if(st===0) pad(ch[1].slice(0,3).map(x=>N(r*2,x)), t, d*16, .03);
+      if(st===0||st===6||st===10) bass(r/2, t, d*(st===0?5:3));
+      const arp=[0,1,2,3,2,1,2,3]; if(st%2===0) pluck(N(r*4,ch[1][arp[st/2]]), t, .06);
+      if([3,11,14].includes(st)) pluck(N(r*8,ch[1][(st+bar)%3]), t, .035);
+      if(st===0||st===8) kick(t,.5);
+      if(st===4||st===12) clap(t,.12);
+      if(st%2===0) hat(t, st%4===2?.05:.03);
+      if(bar===3&&st===14) hat(t,.06,true);
+    }},
+    // tense, driving “thinking” music: Am – F – C – G, with a pulsing bass
+    question:{bpm:132, fn(s,t,d){ const bar=Math.floor(s/16)%8, st=s%16;
+      const ch=[[110,MIN],[87.31,MAJ],[130.81,MAJ],[98,MAJ]][bar%4], r=ch[0];
+      bass(r/2, t, d*.9, st%4===0?.24:.16);
+      if(st===0) pad(ch[1].slice(0,3).map(x=>N(r*2,x)), t, d*16, .025);
+      const pat=[0,2,1,3]; if(st%2===0) pluck(N(r*4,ch[1][pat[(st/2)%4]]), t, .05);
+      if(st===7||st===15) pluck(N(r*8,ch[1][2]), t, .03);
+      if(st%4===0) kick(t,.55);
+      if(st===4||st===12) snare(t,.12);
+      hat(t, st%2?.022:.04);
+      if(bar===7&&st>=12) snare(t,.06+.03*(st-12));
+    }}
+  };
+  function loop(){ if(!seq) return; const d=60/seq.song.bpm/4;
+    while(seq.next < ctx.currentTime + 0.15){ seq.song.fn(seq.step, seq.next, d); seq.next += d; seq.step++; } }
+  function play(name, vol=.55){ init(); if(!ctx) return; stop();
+    bus.gain.cancelScheduledValues(ctx.currentTime); bus.gain.setValueAtTime(0.0001, ctx.currentTime); bus.gain.exponentialRampToValueAtTime(vol, ctx.currentTime+.4);
+    seq={song:SONGS[name], step:0, next:ctx.currentTime+0.06}; timer=setInterval(loop,25); loop(); }
+  function stop(){ clearInterval(timer); timer=null; seq=null; }
+  function sfx(kind, n){ init(); if(!ctx) return; const t=ctx.currentTime+0.02, M=comp;
+    if(kind==='tick'){ // wood-block tick for the last seconds
+      voice(1250,t,.07,{type:'sine',vol:.35,cut:6000,dest:M,wet:.1}); noise(t,.02,.15,'bandpass',3000,{dest:M,wet:0}); }
+    if(kind==='last'){ voice(1700,t,.12,{type:'sine',vol:.4,cut:8000,dest:M,wet:.2}); voice(850,t,.12,{type:'square',vol:.08,cut:3000,dest:M,wet:.2}); }
+    if(kind==='join'){ // bubbly two-note “pop”, a little higher each time
+      const b=N(880,[0,2,4,5,7,9][Math.floor(Math.random()*6)]);
+      voice(b,t,.12,{type:'sine',vol:.25,cut:6000,glide:.5,dest:M,wet:.2}); voice(b*1.5,t+.07,.16,{type:'sine',vol:.2,cut:6000,glide:.6,dest:M,wet:.3}); }
+    if(kind==='answer'){ voice(N(1318.5,(n||0)%5*2),t,.09,{type:'triangle',vol:.12,cut:6000,dest:M,wet:.15}); }
+    if(kind==='reveal'){ // short drum roll, then a bright “ta-da” chord with a cymbal
+      for(let i=0;i<10;i++) snare(t+i*.035, .05+i*.012, M);
+      const h=t+.38; kick(h,.7,M); cymbal(h,.14,M);
+      [261.63,329.63,392,523.25,659.25].forEach(f=>voice(f,h,1.1,{type:'sawtooth',vol:.07,cut:3500,cutEnd:900,det:8,dest:M,wet:.35}));
+      voice(130.81,h,1,{type:'triangle',vol:.25,cut:800,dest:M,wet:.1}); }
+    if(kind==='fanfare'){ // brass-style victory fanfare for the podium
+      const m=[[392,0,.14],[392,.15,.14],[392,.3,.14],[523.25,.45,.55],[466.16,1.05,.2],[523.25,1.3,.2],[659.25,1.55,1.4]];
+      m.forEach(([f,o,l])=>{ voice(f,t+o,l,{type:'sawtooth',vol:.11,cut:2600,cutEnd:1200,att:.03,det:10,dest:M,wet:.35}); voice(f/2,t+o,l,{type:'square',vol:.04,cut:1500,dest:M,wet:.2}); });
+      [0,.45,1.55].forEach(o=>{ kick(t+o,.7,M); }); cymbal(t+.45,.12,M); cymbal(t+1.55,.18,M);
+      for(let i=0;i<8;i++) snare(t+1.05+i*.06,.05+i*.01,M);
+      [261.63,329.63,392,523.25].forEach(f=>voice(f,t+1.55,2.2,{type:'sawtooth',vol:.05,cut:2000,att:.05,det:12,dest:M,wet:.5})); }
+  }
+  function setMuted(m){ muted=m; try { localStorage.setItem('jq-muted', m?'1':'0'); } catch(e){} if(master) master.gain.setTargetAtTime(m?0:.9, ctx.currentTime, .05); }
+  return {play, stop, sfx, init, setMuted, get muted(){return muted;}};
+})();
+function syncMuteBtn(){ const b=$('b-mute'); b.textContent = Music.muted ? 'Music: off' : 'Music: on'; b.setAttribute('aria-pressed', String(Music.muted)); }
+$('b-mute').onclick = () => { Music.setMuted(!Music.muted); syncMuteBtn(); };
+
+/* =====================================================================
+   HOST
+   ===================================================================== */
+let H = {code:null, players:{}, q:-1, timerInt:null, revealed:false, ansCount:0, ansRef:null, stats:{}};
+
+async function hostCreate(){
+  $('b-host').disabled = true;
+  Music.init(); $('b-mute').hidden = false; syncMuteBtn();
+  let code;
+  for (let i=0;i<10;i++){
+    code = String(Math.floor(100000 + Math.random()*900000));
+    if (!(await db.ref('games/'+code+'/state').once('value')).exists()) break;
+  }
+  await db.ref('games/'+code).set({state:'lobby', q:-1, total:QUESTIONS.length, created: firebase.database.ServerValue.TIMESTAMP});
+  H.code = code;
+  $('l-code').textContent = code; $('h-pin').textContent = code;
+  const url = gameUrl(code);
+  $('l-url').textContent = url;
+  $('qr').innerHTML = '';
+  if (window.QRCode) new QRCode($('qr'), {text:url, width:260, height:260, correctLevel: QRCode.CorrectLevel.M});
+  else $('qr').innerHTML = `<img alt="QR code to join" src="https://api.qrserver.com/v1/create-qr-code/?size=260x260&data=${encodeURIComponent(url)}">`;
+  show('s-lobby');
+  Music.play('lobby');
+  let lastCount = 0;
+  db.ref('games/'+code+'/players').on('value', s => {
+    H.players = s.val() || {};
+    const names = Object.values(H.players).map(p=>p.name);
+    $('l-count').textContent = names.length + (names.length===1?' player':' players') + ' joined';
+    $('l-names').innerHTML = names.map(n=>`<span>${esc(n)}</span>`).join('');
+    $('b-start').disabled = names.length === 0;
+    if (names.length > lastCount) Music.sfx('join');
+    lastCount = names.length;
+  });
+}
+$('b-start').onclick = () => hostQuestion(0);
+$('b-next2').onclick = () => hostQuestion(H.q + 1);
+$('b-skip').onclick = () => hostReveal();
+$('b-next').onclick = () => { if (H.q + 1 >= QUESTIONS.length) hostFinal(); else hostBoard(); };
+$('b-new').onclick = () => location.href = location.origin + location.pathname;
+
+async function hostQuestion(i){
+  H.q = i; H.revealed = false; H.ansCount = 0;
+  const Q = QUESTIONS[i];
+  await db.ref('games/'+H.code).update({state:'question', q:i, qStart: firebase.database.ServerValue.TIMESTAMP, limit:Q.time});
+  $('h-num').textContent = `Question ${i+1} of ${QUESTIONS.length}`;
+  $('h-type').textContent = Q.type==='tf' ? 'True or false' : (Q.code ? 'Read the code' : 'Choose one answer');
+  $('h-text').textContent = Q.q;
+  $('h-code').innerHTML = Q.code ? `<div class="codebox">${esc(Q.code)}</div>` : '';
+  $('h-opts').innerHTML = Q.opts.map((o,k)=>`<div class="opt c${k}" id="o${k}"><span class="sh">${SHAPES[k]}</span><span class="${Q.monoOpts?'mono':''}">${esc(o)}</span><span class="n" id="n${k}"></span></div>`).join('');
+  $('h-ans').innerHTML = `0<small>answers</small>`;
+  $('b-skip').hidden = false; $('b-next').hidden = true;
+  show('s-q');
+  Music.play('question');
+  let lastLeft = Q.time;
+  if (H.ansRef) H.ansRef.off();
+  H.ansRef = db.ref(`games/${H.code}/answers/${i}`);
+  H.ansRef.on('value', s => {
+    const prevCount = H.ansCount;
+    H.ansCount = s.numChildren();
+    if (H.ansCount > prevCount && !H.revealed) Music.sfx('answer', H.ansCount);
+    $('h-ans').innerHTML = `${H.ansCount}<small>answers</small>`;
+    if (!H.revealed && H.ansCount >= Object.keys(H.players).length && H.ansCount > 0) hostReveal();
+  });
+  const start = Date.now();
+  clearInterval(H.timerInt);
+  $('h-timer').textContent = Q.time;
+  H.timerInt = setInterval(() => {
+    const left = Math.max(0, Q.time - Math.floor((Date.now()-start)/1000));
+    $('h-timer').textContent = left;
+    if (left !== lastLeft && left <= 5 && left > 0) Music.sfx(left===1?'last':'tick');
+    lastLeft = left;
+    if (left <= 0) hostReveal();
+  }, 250);
+}
+
+async function hostReveal(){
+  if (H.revealed) return; H.revealed = true;
+  clearInterval(H.timerInt);
+  Music.stop(); Music.sfx('reveal');
+  if (H.ansRef) H.ansRef.off();
+  const i = H.q, Q = QUESTIONS[i], right = correctIndex(i), limitMs = Q.time*1000;
+  const ans = (await db.ref(`games/${H.code}/answers/${i}`).once('value')).val() || {};
+  const counts = Q.opts.map(()=>0);
+  const updates = {};
+  Object.entries(H.players).forEach(([pid,p]) => {
+    const a = ans[pid];
+    let points = 0, correct = false;
+    if (a && a.choice >= 0 && a.choice < counts.length) {
+      counts[a.choice]++;
+      if (a.choice === right) { correct = true; points = Math.round(1000 * (1 - Math.min(a.t, limitMs)/limitMs/2)); }
+    }
+    updates[`players/${pid}/score`] = (p.score||0) + points;
+    updates[`players/${pid}/last`] = {q:i, correct, points, answered: !!a};
+  });
+  H.stats[i] = {counts, right, answered:Object.keys(ans).length, players:Object.keys(H.players).length};
+  updates['state'] = 'reveal';
+  updates[`stats/${i}`] = H.stats[i];
+  await db.ref('games/'+H.code).update(updates);
+  H.players = (await db.ref(`games/${H.code}/players`).once('value')).val() || {};
+  Q.opts.forEach((_,k)=>{ $('o'+k).classList.add(k===right?'right':'dim'); $('n'+k).textContent = counts[k]; });
+  $('h-timer').textContent = '✓';
+  $('b-skip').hidden = true; $('b-next').hidden = false;
+  $('b-next').textContent = i + 1 >= QUESTIONS.length ? 'Show final results' : 'Show scoreboard';
+  $('b-next').focus();
+}
+
+function ranked(){ return Object.entries(H.players).map(([id,p])=>({id,name:p.name,score:p.score||0})).sort((a,b)=>b.score-a.score); }
+
+async function hostBoard(){
+  await db.ref('games/'+H.code).update({state:'board'});
+  $('board').innerHTML = ranked().slice(0,5).map((p,k)=>`<div class="r"><b>${k+1}</b><span>${esc(p.name)}</span><span class="s">${p.score}</span></div>`).join('');
+  show('s-board'); $('b-next2').focus();
+  Music.play('lobby', .4);
+}
+
+async function hostFinal(){
+  await db.ref('games/'+H.code).update({state:'final'});
+  const R = ranked();
+  const pod = [['p1','1st',R[0]],['p2','2nd',R[1]],['p3','3rd',R[2]]];
+  $('podium').innerHTML = pod.filter(x=>x[2]).map(([c,l,p])=>`<div class="pod ${c}"><div class="place">${l}</div><div class="nm">${esc(p.name)}</div><div class="pts">${p.score} points</div></div>`).join('');
+  const next = R.slice(3,8);
+  $('next5').innerHTML = next.length ? `<tr><th>Position</th><th>Name</th><th>Points</th></tr>` + next.map((p,k)=>`<tr><td>${k+4}</td><td>${esc(p.name)}</td><td>${p.score}</td></tr>`).join('') : '';
+  $('next5').hidden = !next.length;
+  show('s-final');
+  Music.stop(); Music.sfx('fanfare');
+  setTimeout(() => { if ($('s-final').classList.contains('on')) Music.play('lobby', .35); }, 3200);
+}
+
+$('b-stats').onclick = () => {
+  const w = $('statswrap');
+  if (!w.hidden) { w.hidden = true; return; }
+  w.innerHTML = `<table class="stats"><tr><th>#</th><th>Question</th><th>Correct answer</th><th>Class correct</th></tr>` +
+    QUESTIONS.map((Q,i)=>{
+      const s = H.stats[i]; if (!s) return '';
+      const pc = s.players ? Math.round(100 * s.counts[s.right] / s.players) : 0;
+      return `<tr><td>${i+1}</td><td>${esc(Q.q)}${Q.code?`<div class="mono" style="font-size:13px;color:#5f6b82;white-space:pre-wrap">${esc(Q.code)}</div>`:''}</td><td>${esc(Q.opts[s.right])}</td><td><div class="bar"><i style="width:${pc}%"></i></div>${pc}% (${s.counts[s.right]}/${s.players})</td></tr>`;
+    }).join('') + `</table>`;
+  w.hidden = false; w.scrollIntoView({behavior:'smooth'});
+};
+
+$('b-csv').onclick = async () => {
+  const ans = (await db.ref(`games/${H.code}/answers`).once('value')).val() || {};
+  const head = ['Position','Name','Points', ...QUESTIONS.map((_,i)=>'Q'+(i+1))];
+  const rows = ranked().map((p,k)=>[k+1, p.name, p.score, ...QUESTIONS.map((_,i)=>{
+    const a = ans[i] && ans[i][p.id]; if (!a) return 'no answer';
+    return a.choice === correctIndex(i) ? 'correct' : 'wrong';
+  })]);
+  const csv = [head, ...rows].map(r=>r.map(v=>`"${String(v).replace(/"/g,'""')}"`).join(',')).join('\n');
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([csv],{type:'text/csv'}));
+  a.download = `java-quiz-${H.code}.csv`; a.click();
+};
+</script>
+</body>
+</html>
