@@ -1,0 +1,1199 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Pseudocode Quest</title>
+<meta name="description" content="Live classroom game for learning pseudocode — by Razeen Ramzy">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Lexend:wght@400;600;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
+<style>
+:root{
+  --stage:#14284b; --stage2:#1d3a6b; --stage3:#27497f; --ink:#16233b; --paper:#f4f6fb; --line:#d8dfeb; --muted:#5f6b82;
+  --blue:#2f6fd6; --green:#1f9d55; --red:#e5484d; --amber:#d99a00; --violet:#7c5cd6;
+  --gold:#f2c94c; --silver:#c9d1dc; --bronze:#d9925b;
+  --mono:'JetBrains Mono',Consolas,monospace;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{min-height:100%}
+body{font-family:'Lexend',Arial,sans-serif;background:var(--stage);color:#fff;-webkit-tap-highlight-color:transparent}
+button{font-family:inherit;cursor:pointer;border:none;color:inherit;background:none}
+button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
+.screen{display:none;min-height:100vh;flex-direction:column}
+.screen.on{display:flex}
+[hidden]{display:none!important}
+.mono{font-family:var(--mono)}
+
+/* ---------- buttons ---------- */
+.btn{background:#fff;color:var(--ink);font-weight:800;font-size:17px;padding:13px 22px;border-radius:12px;box-shadow:0 4px 0 #9fb0cc;transition:transform .05s}
+.btn:active{transform:translateY(3px);box-shadow:0 1px 0 #9fb0cc}
+.btn.blue{background:var(--blue);color:#fff;box-shadow:0 4px 0 #1b4a9a}
+.btn.green{background:var(--green);color:#fff;box-shadow:0 4px 0 #11683a}
+.btn.amber{background:var(--gold);color:var(--ink);box-shadow:0 4px 0 #a88a2c}
+.btn.dark{background:var(--stage2);color:#fff;box-shadow:0 4px 0 #0c1a33}
+.btn.ghost{background:transparent;color:var(--ink);box-shadow:none;border:2px solid var(--line)}
+.btn.small{font-size:14px;padding:8px 14px;border-radius:9px;box-shadow:0 3px 0 #9fb0cc}
+.btn.small.blue{box-shadow:0 3px 0 #1b4a9a}.btn.small.green{box-shadow:0 3px 0 #11683a}.btn.small.dark{box-shadow:0 3px 0 #0c1a33}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+
+/* ---------- home ---------- */
+.home{align-items:center;justify-content:center;padding:28px 18px;text-align:center;gap:26px}
+.brand{font-weight:800;font-size:clamp(38px,7vw,76px);line-height:1;letter-spacing:-1.5px}
+.brand .p{color:var(--gold)}
+.brand small{display:block;font-weight:400;font-size:clamp(15px,2vw,20px);color:#b8c6e0;letter-spacing:0;margin-top:12px}
+.floaty{font-family:var(--mono);color:#7f97c3;font-size:15px;opacity:.8}
+.card{background:#fff;color:var(--ink);border-radius:18px;padding:26px;width:min(420px,100%);text-align:left}
+.card h2{font-size:22px;margin-bottom:14px}
+.card label{display:block;font-size:14px;color:var(--muted);margin:6px 0 6px;font-weight:600}
+.card input{width:100%;font-family:inherit;font-size:20px;padding:12px 14px;border:2px solid var(--line);border-radius:10px;margin-bottom:10px}
+.card .btn{width:100%;margin-top:6px}
+.err{color:#b42318;min-height:20px;font-size:14px;margin-top:8px}
+.teacher-link{color:#b8c6e0;font-size:14px;text-decoration:underline;padding:8px}
+.credit{color:#7f97c3;font-size:13px;text-align:center;padding:14px}
+
+/* ---------- top bar (student) ---------- */
+.bar{display:flex;align-items:center;gap:12px;padding:10px 16px;background:var(--stage2);position:sticky;top:0;z-index:20;box-shadow:0 2px 10px #0004}
+.bar .who{font-weight:800;font-size:16px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:34vw}
+.bar .rt{font-size:13px;color:#b8c6e0;flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pill{background:#ffffff1f;border-radius:999px;padding:6px 12px;font-weight:800;font-size:15px;white-space:nowrap}
+.pill.gold{background:var(--gold);color:var(--ink)}
+.pill.timer{font-family:var(--mono)}
+.pill.timer.low{background:var(--red);color:#fff;animation:pulse 1s infinite}
+@keyframes pulse{50%{transform:scale(1.08)}}
+
+/* ---------- student content ---------- */
+.wrap{width:min(980px,100%);margin:0 auto;padding:18px 14px 60px}
+.wait{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:30px;gap:14px}
+.wait .big{font-size:clamp(26px,5vw,40px);font-weight:800}
+.wait p{color:#b8c6e0;max-width:520px}
+.spinner{width:56px;height:56px;border:6px solid #ffffff2a;border-top-color:var(--gold);border-radius:50%;animation:spin 1s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.roundhead{display:flex;align-items:center;gap:14px;margin-bottom:6px}
+.roundhead .ic{font-size:40px}
+.roundhead h1{font-size:clamp(22px,4vw,30px)}
+.intro{color:#c9d6ee;margin-bottom:18px;font-size:15px;line-height:1.5}
+.tasks{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:12px}
+.tcard{background:#fff;color:var(--ink);border-radius:14px;padding:16px;text-align:left;position:relative;box-shadow:0 4px 0 #9fb0cc;transition:transform .1s}
+.tcard:hover{transform:translateY(-2px)}
+.tcard .n{font-size:12px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.5px}
+.tcard .t{font-weight:800;font-size:18px;margin:4px 0 8px}
+.tcard .s{font-size:13px;color:var(--muted)}
+.tcard.done{background:#e7f6ee;box-shadow:0 4px 0 #9bd3b4}
+.tcard.done .s{color:var(--green);font-weight:800}
+.lvl{display:inline-block;font-size:11px;font-weight:800;padding:3px 8px;border-radius:6px;color:#fff;margin-left:6px;vertical-align:middle}
+.lvl.Easy{background:var(--green)}.lvl.Medium{background:var(--amber)}.lvl.Hard{background:var(--red)}
+
+.panel{background:#fff;color:var(--ink);border-radius:16px;padding:20px;margin-bottom:14px}
+.panel h3{font-size:16px;margin-bottom:10px}
+.back{color:#b8c6e0;font-size:15px;margin-bottom:12px;padding:4px 0}
+.taskq{font-size:19px;font-weight:600;line-height:1.45}
+.taskq .tag{font-size:12px;color:var(--muted);display:block;font-weight:600;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px}
+
+/* order */
+.prog{min-height:120px;background:#0f1f3d;border-radius:12px;padding:12px;font-family:var(--mono);font-size:15px;color:#e6edf7;margin-bottom:12px}
+.prog .ph{color:#6f86b0;font-family:'Lexend';font-size:14px;padding:6px}
+.pline{display:flex;align-items:center;gap:8px;width:100%;text-align:left;padding:7px 8px;border-radius:7px;font-family:var(--mono);font-size:15px;color:#e6edf7}
+.pline:hover{background:#ffffff14}
+.pline .ln{color:#5f78a6;width:22px;text-align:right;flex:none;font-size:12px}
+.pline.ok{background:#1f9d5533}.pline.bad{background:#e5484d44}
+.pool{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px}
+.chip{background:var(--paper);border:2px solid var(--line);border-radius:9px;padding:9px 12px;font-family:var(--mono);font-size:14px;color:var(--ink);box-shadow:0 3px 0 var(--line)}
+.chip:hover{border-color:var(--blue)}
+.actions{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.fb{font-size:15px;font-weight:600;margin-top:10px;min-height:22px}
+.fb .ok,.fb.ok{color:#59d38c}.fb .bad,.fb.bad{color:#ff9b9e}
+
+/* fill */
+.two{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.codebox{background:#0f1f3d;color:#e6edf7;border-radius:12px;padding:14px;font-family:var(--mono);font-size:14px;line-height:1.7;white-space:pre;overflow:auto}
+.codebox .lbl{display:block;font-family:'Lexend';font-size:12px;color:#8ea6d1;margin-bottom:6px;text-transform:uppercase;letter-spacing:.5px}
+.java{background:#2b1d0e;color:#ffe7c2}
+.java .lbl{color:#e6b679}
+.codebox select{font-family:var(--mono);font-size:14px;font-weight:600;background:var(--gold);color:var(--ink);border:none;border-radius:6px;padding:2px 4px;cursor:pointer}
+.codebox select.ok{background:#59d38c}.codebox select.bad{background:#ff8a8d}
+
+/* bug */
+.bugl{display:flex;gap:10px;width:100%;text-align:left;font-family:var(--mono);font-size:15px;padding:10px 12px;border-radius:8px;color:#e6edf7;white-space:pre}
+.bugl:hover{background:#ffffff18}
+.bugl .ln{color:#5f78a6;width:18px;text-align:right}
+.bugl.bad{background:#e5484d55;animation:shake .35s}.bugl.ok{background:#1f9d5566}
+@keyframes shake{25%{transform:translateX(-6px)}75%{transform:translateX(6px)}}
+.why{background:#e7f6ee;color:#0f5132;border-radius:10px;padding:12px;margin-top:12px;font-size:15px}
+
+/* write */
+.wgrid{display:grid;grid-template-columns:minmax(0,1.35fr) minmax(0,1fr);gap:14px;align-items:start}
+.toolbar{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px}
+.kw{font-family:var(--mono);font-size:12.5px;font-weight:600;background:#e8eefb;color:var(--blue);border-radius:7px;padding:6px 9px}
+.kw:hover{background:#d5e1f8}
+.editor{display:flex;background:#0f1f3d;border-radius:12px;overflow:hidden;min-height:330px;position:relative}
+.gutter{font-family:var(--mono);font-size:15px;line-height:1.6;color:#5f78a6;text-align:right;padding:12px 8px 12px 10px;user-select:none;background:#0b1830;min-width:40px;overflow:hidden}
+.gutter div.err{background:var(--red);color:#fff;border-radius:4px;padding:0 3px;margin:0 -3px}
+.editor textarea{flex:1;font-family:var(--mono);font-size:15px;line-height:1.6;background:transparent;color:#e6edf7;border:none;resize:vertical;padding:12px;min-height:330px;outline:none;white-space:pre;overflow:auto;tab-size:3}
+.editor textarea::placeholder{color:#4e6894}
+.check{list-style:none;font-size:14px}
+.check li{padding:6px 0;display:flex;gap:8px;align-items:flex-start;border-bottom:1px dashed var(--line)}
+.check li:last-child{border:none}
+.check .i{width:22px;height:22px;border-radius:50%;flex:none;display:grid;place-items:center;font-size:13px;font-weight:800;background:#e3e8f1;color:#9aa6bb}
+.check li.y .i{background:var(--green);color:#fff}
+.check li.n.must .i{background:#ffe1e1;color:var(--red)}
+.console{background:#0b1830;color:#d6f5e3;font-family:var(--mono);font-size:14px;border-radius:10px;padding:12px;min-height:70px;white-space:pre-wrap;margin-top:8px;max-height:260px;overflow:auto}
+.console .e{color:#ff9b9e}.console .m{color:#7f97c3}
+.tests{display:flex;flex-direction:column;gap:6px;margin-top:8px}
+.trow{display:flex;gap:8px;align-items:flex-start;font-size:13.5px;padding:8px 10px;border-radius:9px;background:var(--paper)}
+.trow.p{background:#e7f6ee}.trow.f{background:#fdecec}
+.trow b{flex:none}
+.trow .d{color:var(--muted);font-size:12.5px}
+.score-preview{font-weight:800;font-size:15px;margin-top:8px}
+.mini{font-size:13px;color:var(--muted)}
+.myin{display:flex;gap:8px;margin-top:8px}
+.myin input{flex:1;font-family:var(--mono);font-size:14px;padding:8px 10px;border:2px solid var(--line);border-radius:8px}
+details.cheat{margin-top:4px}
+details.cheat summary{cursor:pointer;font-weight:800;font-size:15px;padding:4px 0}
+.cheat table{width:100%;border-collapse:collapse;font-size:13px;margin-top:8px}
+.cheat td,.cheat th{padding:6px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}
+.cheat td:first-child{font-family:var(--mono);font-weight:600;color:var(--blue);white-space:nowrap}
+.cheat .msg{background:#fff7dd;border-radius:8px;padding:10px;font-size:13.5px;margin-top:8px;line-height:1.5}
+
+/* planner */
+.planner{background:#fff7dd;border:2px solid var(--gold);border-radius:14px;padding:16px;margin-bottom:12px}
+.planner h3{font-size:17px;margin-bottom:4px}
+.pstep{display:flex;gap:12px;margin-top:12px}
+.pstep .num{width:30px;height:30px;border-radius:50%;background:var(--gold);color:var(--ink);font-weight:800;display:grid;place-items:center;flex:none}
+.pstep .body{flex:1}
+.pstep .q{font-weight:600;font-size:15px}
+.pstep .h{font-size:12.5px;color:var(--muted);margin:2px 0 6px}
+.pstep input[type=text]{width:100%;font-family:var(--mono);font-size:14px;padding:8px 10px;border:2px solid var(--line);border-radius:8px}
+.pstep label.cb{display:flex;gap:8px;align-items:center;font-size:14px;margin:5px 0;cursor:pointer}
+.pstep label.cb input{width:18px;height:18px}
+.peek{font-size:12.5px;color:var(--blue);text-decoration:underline;margin-top:4px}
+
+/* java */
+.javaout{background:#2b1d0e;color:#ffe7c2;font-family:var(--mono);font-size:13px;border-radius:10px;padding:12px;white-space:pre;overflow:auto;margin-top:8px;line-height:1.55}
+.javanote{font-size:13px;color:var(--muted);margin-top:8px;line-height:1.5}
+
+/* flying points + toast */
+.fly{position:fixed;left:50%;top:45%;transform:translate(-50%,-50%);font-size:clamp(46px,10vw,90px);font-weight:800;color:var(--gold);text-shadow:0 4px 0 #0005;pointer-events:none;z-index:100;animation:fly 1.4s ease-out forwards}
+.fly.neg{color:#ff8a8d}
+@keyframes fly{0%{opacity:0;transform:translate(-50%,-30%) scale(.5)}20%{opacity:1;transform:translate(-50%,-50%) scale(1.15)}70%{opacity:1}100%{opacity:0;transform:translate(-50%,-160%) scale(1)}}
+.toast{position:fixed;left:50%;bottom:22px;transform:translateX(-50%);background:#fff;color:var(--ink);padding:12px 18px;border-radius:12px;font-weight:600;box-shadow:0 8px 30px #0006;z-index:90;max-width:92vw;animation:tin .3s}
+.toast.gold{background:var(--gold)}
+@keyframes tin{from{opacity:0;transform:translate(-50%,20px)}}
+
+/* ---------- HOST ---------- */
+.hbar{display:flex;align-items:center;gap:14px;padding:12px 20px;background:var(--stage2);flex-wrap:wrap}
+.hbar .logo{font-weight:800;font-size:20px}.hbar .logo .p{color:var(--gold)}
+.hbar .room{font-family:var(--mono);font-size:18px;background:#fff;color:var(--ink);padding:4px 12px;border-radius:8px;font-weight:600}
+.hbar .sp{flex:1}
+.hbody{display:grid;grid-template-columns:290px 1fr;flex:1;min-height:0}
+.side{background:#0f2141;padding:16px;display:flex;flex-direction:column;gap:10px;overflow:auto}
+.side h4{font-size:12px;color:#8ea6d1;text-transform:uppercase;letter-spacing:.7px;margin-top:8px}
+.rbtn{display:flex;align-items:center;gap:10px;width:100%;text-align:left;background:var(--stage2);border-radius:12px;padding:12px;font-size:14px;font-weight:600;border:2px solid transparent}
+.rbtn .ic{font-size:22px}.rbtn small{display:block;color:#8ea6d1;font-weight:400;font-size:12px}
+.rbtn.cur{border-color:var(--gold);background:var(--stage3)}
+.rbtn:hover{background:var(--stage3)}
+.side .ctrl{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.side .ctrl .btn{font-size:13px;padding:10px 8px}
+.bigtimer{font-family:var(--mono);font-size:40px;font-weight:600;text-align:center;background:var(--stage2);border-radius:12px;padding:8px}
+.bigtimer.low{color:#ff8a8d}
+.tabs{display:flex;gap:6px}
+.tab{padding:9px 14px;border-radius:10px;font-weight:600;font-size:14px;color:#b8c6e0}
+.tab.on{background:#fff;color:var(--ink)}
+.main{padding:22px;overflow:auto;position:relative}
+.main h2{font-size:28px;margin-bottom:6px}
+.sub{color:#b8c6e0;margin-bottom:16px}
+
+.lobby{display:grid;grid-template-columns:minmax(280px,380px) 1fr;gap:30px;align-items:start}
+.joinbox{background:#fff;color:var(--ink);border-radius:20px;padding:22px;text-align:center}
+.joinbox p{color:var(--muted)}
+.joinbox .code{font-size:60px;font-weight:800;letter-spacing:8px;margin:2px 0 8px;font-family:var(--mono)}
+#qr{display:flex;justify-content:center;margin:8px auto 10px}
+#qr img,#qr canvas{width:250px!important;height:250px!important}
+.joinbox .url{font-family:var(--mono);font-size:12px;word-break:break-all;color:var(--muted)}
+.names{display:flex;flex-wrap:wrap;gap:10px;margin-top:10px}
+.nm{background:#fff;color:var(--ink);font-weight:800;padding:10px 16px;border-radius:999px;font-size:18px;animation:pop .4s}
+@keyframes pop{0%{transform:scale(0)}70%{transform:scale(1.15)}100%{transform:scale(1)}}
+
+.board{position:relative;margin-top:10px}
+.brow{position:absolute;left:0;right:0;height:52px;display:flex;align-items:center;gap:12px;transition:top .7s cubic-bezier(.3,1.3,.5,1)}
+.brow .rk{width:38px;height:38px;border-radius:50%;background:var(--stage2);display:grid;place-items:center;font-weight:800;flex:none}
+.brow:nth-child(1) .rk{background:var(--gold);color:var(--ink)}
+.brow .barw{flex:1;background:#ffffff12;border-radius:10px;height:42px;position:relative;overflow:hidden}
+.brow .fill{position:absolute;inset:0 auto 0 0;background:linear-gradient(90deg,var(--blue),#5b8ff0);border-radius:10px;transition:width .7s}
+.brow .lab{position:absolute;left:14px;top:50%;transform:translateY(-50%);font-weight:800;font-size:18px;white-space:nowrap}
+.brow .pts{font-family:var(--mono);font-weight:600;font-size:20px;width:80px;text-align:right}
+.brow.gold .fill{background:linear-gradient(90deg,#c99a1c,var(--gold))}.brow.gold .lab{color:var(--ink)}
+.prog-stats{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px}
+.stat{background:var(--stage2);border-radius:12px;padding:10px 14px;font-size:13px;color:#b8c6e0}
+.stat b{display:block;font-size:22px;color:#fff}
+
+.wallf{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px}
+.wf{background:var(--stage2);border-radius:999px;padding:7px 13px;font-size:13px;font-weight:600}
+.wf.on{background:var(--gold);color:var(--ink)}
+.wall{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:14px}
+.wc{background:#fff;color:var(--ink);border-radius:14px;padding:14px;display:flex;flex-direction:column;gap:8px;animation:pop .45s}
+.wc .h{display:flex;align-items:center;gap:8px}
+.wc .h b{font-size:16px;flex:1}
+.badge{font-size:12px;font-weight:800;border-radius:7px;padding:3px 8px;background:#e3e8f1}
+.badge.all{background:var(--green);color:#fff}.badge.some{background:var(--gold)}.badge.none{background:#fdecec;color:var(--red)}
+.wc pre{background:#0f1f3d;color:#e6edf7;font-family:var(--mono);font-size:12px;border-radius:9px;padding:10px;max-height:200px;overflow:hidden;line-height:1.5}
+.wc .acts{display:flex;gap:8px}
+.wc .star{font-size:13px}
+.wc.starred{box-shadow:0 0 0 4px var(--gold)}
+.empty{color:#8ea6d1;padding:30px;text-align:center;border:2px dashed #ffffff22;border-radius:14px}
+
+.modal{position:fixed;inset:0;background:#081226e6;z-index:200;display:flex;align-items:center;justify-content:center;padding:20px}
+.mbox{background:#fff;color:var(--ink);border-radius:18px;width:min(1200px,100%);max-height:94vh;overflow:auto;padding:22px}
+.mbox .mh{display:flex;align-items:center;gap:12px;margin-bottom:12px;flex-wrap:wrap}
+.mbox .mh h2{font-size:26px;flex:1}
+.spot{display:grid;grid-template-columns:1.2fr 1fr;gap:16px}
+.spot pre{background:#0f1f3d;color:#e6edf7;font-family:var(--mono);font-size:clamp(14px,1.5vw,20px);border-radius:12px;padding:16px;line-height:1.55;overflow:auto;white-space:pre}
+
+.podium{display:flex;align-items:flex-end;justify-content:center;gap:18px;margin-top:40px;min-height:420px}
+.pod{display:flex;flex-direction:column;align-items:center;gap:10px;width:min(240px,30vw)}
+.pod .nm2{font-weight:800;font-size:clamp(18px,2.4vw,30px);text-align:center;opacity:0;animation:rise .6s forwards}
+.pod .sc{font-family:var(--mono);color:#b8c6e0;font-size:18px;opacity:0;animation:rise .6s forwards}
+.pod .blk{width:100%;border-radius:14px 14px 0 0;display:flex;justify-content:center;padding-top:16px;font-size:54px;font-weight:800;color:var(--ink);transform-origin:bottom;animation:grow .9s cubic-bezier(.3,1.4,.5,1) both}
+.pod.p1 .blk{background:var(--gold);height:300px}.pod.p2 .blk{background:var(--silver);height:220px}.pod.p3 .blk{background:var(--bronze);height:160px}
+@keyframes grow{from{transform:scaleY(0)}}
+@keyframes rise{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:none}}
+#confetti{position:fixed;inset:0;pointer-events:none;z-index:150}
+
+@media (max-width:860px){
+  .two,.wgrid,.spot{grid-template-columns:1fr}
+  .hbody{grid-template-columns:1fr}
+  .lobby{grid-template-columns:1fr}
+}
+</style>
+</head>
+<body>
+
+<!-- =============== HOME =============== -->
+<section class="screen home on" id="s-home">
+  <div class="floaty">IF learning = fun THEN OUTPUT "Let's go!" ENDIF</div>
+  <div class="brand"><span class="p">Pseudo</span>code Quest<small>Plan it. Write it. Run it. Win it.</small></div>
+  <div class="card">
+    <h2>Join the game</h2>
+    <label for="in-code">Room code</label>
+    <input id="in-code" inputmode="numeric" maxlength="4" placeholder="e.g. 4821" autocomplete="off">
+    <label for="in-name">Your name</label>
+    <input id="in-name" maxlength="18" placeholder="First name" autocomplete="off">
+    <button class="btn blue" id="b-join">Join ▶</button>
+    <div class="err" id="join-err"></div>
+  </div>
+  <button class="teacher-link" id="b-teacher">I'm the teacher — host a game</button>
+  <div class="err" id="setupwarn" hidden style="color:#ffb4b4"></div>
+  <footer class="credit">Developed by <b>Razeen Ramzy</b></footer>
+</section>
+
+<!-- =============== STUDENT =============== -->
+<section class="screen" id="s-play">
+  <div class="bar">
+    <div class="who" id="p-name"></div>
+    <div class="rt" id="p-round"></div>
+    <div class="pill timer" id="p-timer" hidden></div>
+    <div class="pill" id="p-rank">#–</div>
+    <div class="pill gold" id="p-score">0</div>
+  </div>
+  <div id="p-view" style="flex:1;display:flex;flex-direction:column"></div>
+</section>
+
+<!-- =============== HOST =============== -->
+<section class="screen" id="s-host">
+  <div class="hbar">
+    <div class="logo"><span class="p">Pseudo</span>code Quest</div>
+    <div class="room" id="h-room">----</div>
+    <div class="mini" style="color:#b8c6e0" id="h-count">0 players</div>
+    <div class="sp"></div>
+    <div class="tabs">
+      <button class="tab on" data-v="lobby">Join screen</button>
+      <button class="tab" data-v="board">Leaderboard</button>
+      <button class="tab" data-v="wall">Live wall</button>
+      <button class="tab" data-v="final">🏆 Podium</button>
+    </div>
+  </div>
+  <div class="hbody">
+    <aside class="side">
+      <h4>Rounds</h4>
+      <div id="h-rounds"></div>
+      <h4>Round timer</h4>
+      <div class="bigtimer" id="h-timer">--:--</div>
+      <div class="ctrl">
+        <button class="btn small dark" id="h-plus">+2 min</button>
+        <button class="btn small dark" id="h-close">⏹ Close round</button>
+      </div>
+      <h4>Tips</h4>
+      <p class="mini" style="color:#8ea6d1;line-height:1.5">Open a round → students play on their phones. Watch the <b>Live wall</b> in Round 4: tap ⭐ to give +50, or 🔍 to show an answer to the class.</p>
+      <button class="btn small dark" id="h-end" style="margin-top:auto">End game &amp; new room</button>
+    </aside>
+    <main class="main" id="h-main"></main>
+  </div>
+</section>
+
+<canvas id="confetti"></canvas>
+<div id="modal-root"></div>
+
+<script>
+/* ============================================================
+   PSEUDO RUNNER — a forgiving pseudocode interpreter
+   Understands: INPUT/READ/GET/ENTER, OUTPUT/PRINT/DISPLAY/WRITE,
+   SET x TO / ← / = / :=, IF/ELSE IF/ELSE/ENDIF, WHILE/ENDWHILE,
+   FOR x ← a TO b STEP s / ENDFOR / NEXT, REPEAT/UNTIL,
+   INCREMENT/DECREMENT, ADD x TO y, AND/OR/NOT, MOD, DIV
+   ============================================================ */
+const PR = (function(){
+  const FUNCS = {
+    ROUND:{js:"F.ROUND", java:"Math.round"}, INT:{js:"Math.trunc", java:"(int)"},
+    SQRT:{js:"Math.sqrt", java:"Math.sqrt"}, ABS:{js:"Math.abs", java:"Math.abs"},
+    MAX:{js:"Math.max", java:"Math.max"}, MIN:{js:"Math.min", java:"Math.min"},
+    POW:{js:"Math.pow", java:"Math.pow"}, LEN:{js:"F.LEN", java:"F.length"},
+    LENGTH:{js:"F.LEN", java:"F.length"}, RANDOM:{js:"F.RANDOM", java:"Math.random"}
+  };
+  const F = {
+    ROUND:(x,d=0)=>{const p=Math.pow(10,d);return Math.round(x*p)/p;},
+    LEN:x=>String(x).length, RANDOM:(a,b)=> b===undefined?Math.random():a+Math.floor(Math.random()*(b-a+1))
+  };
+
+  const BRK={brk:1}, HALT={halt:1};
+  class PErr extends Error { constructor(line,msg){ super(msg); this.line=line; } }
+
+  // ---------- tokenizer ----------
+  function tokenize(s, line){
+    const out=[]; let i=0;
+    while(i<s.length){
+      const c=s[i];
+      if(/\s/.test(c)){i++;continue;}
+      if(c=='"'||c=="'"||c=='“'||c=='”'||c=='‘'||c=='’'){
+        const close = (c=='“'||c=='”')?/[”“"]/:(c=='‘'||c=='’')?/[’‘']/:new RegExp(c);
+        let j=i+1; while(j<s.length && !close.test(s[j])) j++;
+        if(j>=s.length) throw new PErr(line,"A text in quotes is not closed. Add the closing quote mark.");
+        out.push({t:"str",v:s.slice(i+1,j)}); i=j+1; continue;
+      }
+      let m;
+      if((m=/^\d+(\.\d+)?/.exec(s.slice(i)))){ out.push({t:"num",v:m[0]}); i+=m[0].length; continue; }
+      if((m=/^[A-Za-z_][A-Za-z0-9_]*/.exec(s.slice(i)))){ out.push({t:"id",v:m[0]}); i+=m[0].length; continue; }
+      if((m=/^(<=|>=|<>|!=|==|&&|\|\||≤|≥|≠|[<>=+\-*\/%^(),\[\]&×÷!])/.exec(s.slice(i)))){ out.push({t:"op",v:m[0]}); i+=m[0].length; continue; }
+      throw new PErr(line,`I don't understand the symbol "${c}".`);
+    }
+    return out;
+  }
+
+  // ---------- expression -> JS / Java ----------
+  function exprCode(toks, mode, line){
+    let js="";
+    for(let k=0;k<toks.length;k++){
+      const t=toks[k], nx=toks[k+1];
+      if(t.t=="str"){ js+=JSON.stringify(t.v); continue; }
+      if(t.t=="num"){ js+=t.v; continue; }
+      if(t.t=="op"){
+        const map={"=":"==","<>":"!=","≠":"!=","≤":"<=","≥":">=","&":"+","×":"*","÷":"/","^":mode=="js"?"**":"^"};
+        js+=" "+(map[t.v]||t.v)+" "; continue;
+      }
+      const U=t.v.toUpperCase();
+      if(U=="AND"){js+=" && ";continue;} if(U=="OR"){js+=" || ";continue;}
+      if(U=="NOT"){js+=" !";continue;} if(U=="MOD"){js+=" % ";continue;}
+      if(U=="DIV"){js+= mode=="js"?" /~ ":" / ";continue;}
+      if(U=="TRUE"||U=="FALSE"){js+=U.toLowerCase();continue;}
+      if(nx&&nx.t=="op"&&nx.v=="("&&FUNCS[U]){ js+=FUNCS[U][mode]; continue; }
+      if(mode=="js"){
+        if(nx&&nx.t=="op"&&nx.v=="(") throw new PErr(line,`"${t.v}" is not a function I know. You can use ROUND, INT, SQRT, ABS, MAX, MIN, LEN.`);
+        js+=`V.g(${JSON.stringify(t.v.toLowerCase())},${line})`;
+      } else js+=t.v;
+    }
+    if(mode=="js"){
+      // integer division: a /~ b  ->  Math.trunc(a / b)  (simple left/right operand handling)
+      while(js.includes("/~")){
+        const p=js.indexOf("/~");
+        const L=grabLeft(js,p), R=grabRight(js,p+2);
+        js=js.slice(0,L)+"Math.trunc(("+js.slice(L,p)+")/("+js.slice(p+2,R)+"))"+js.slice(R);
+      }
+    }
+    return js.replace(/\s+/g," ").trim();
+  }
+  function grabLeft(s,p){ let i=p-1,d=0; while(i>=0&&s[i]==" ")i--; for(;i>=0;i--){const c=s[i]; if(c==")")d++; else if(c=="("){ if(d==0)break; d--; } else if(d==0&&/[\s+\-*\/%<>=!&|,]/.test(c)) break; } return i+1; }
+  function grabRight(s,p){ let i=p,d=0; while(i<s.length&&s[i]==" ")i++; for(;i<s.length;i++){const c=s[i]; if(c=="(")d++; else if(c==")"){ if(d==0)break; d--; if(d==0){i++;break;} } else if(d==0&&/[\s+\-*\/%<>=!&|,]/.test(c)) break; } return i; }
+
+  function compileExpr(src, line){
+    const toks=tokenize(src,line);
+    if(!toks.length) throw new PErr(line,"Something is missing here (an empty value or condition).");
+    const js=exprCode(toks,"js",line);
+    let fn; try{ fn=new Function("V","F","return ("+js+");"); }
+    catch(e){ throw new PErr(line,`I can't read "${src.trim()}". Check the operators and brackets.`); }
+    return {src:src.trim(), fn, java:exprCode(toks,"java",line), toks};
+  }
+  // split by top-level commas
+  function splitTop(s){ const parts=[]; let d=0,q=null,cur=""; for(const c of s){ if(q){cur+=c; if(c==q||(q=='“'&&c=='”'))q=null; continue;} if(c=='"'||c=="'"||c=='“'){q=c;cur+=c;continue;} if(c=="("||c=="[")d++; if(c==")"||c=="]")d--; if(c==","&&d==0){parts.push(cur);cur="";continue;} cur+=c;} if(cur.trim())parts.push(cur); return parts; }
+  function stripStrings(s){ return s.replace(/"[^"]*"|'[^']*'|“[^”]*”/g," "); }
+  function findOutside(s, re){ // index of regex match outside quotes
+    let q=null; for(let i=0;i<s.length;i++){ const c=s[i]; if(q){ if(c==q||(q=='“'&&c=='”'))q=null; continue;} if(c=='"'||c=="'"||c=='“'){q=c;continue;} const m=re.exec(s.slice(i)); if(m&&m.index==0) return {i, len:m[0].length}; } return null; }
+
+  const ID=/^[A-Za-z_][A-Za-z0-9_]*$/;
+  function target(t,line){
+    t=t.trim(); let m=/^([A-Za-z_]\w*)\s*\[(.+)\]$/.exec(t);
+    if(m) return {name:m[1].toLowerCase(), raw:m[1], index:compileExpr(m[2],line)};
+    if(!ID.test(t)) throw new PErr(line,`"${t}" is not a good variable name. Use one word, like total or studentMark.`);
+    if(/^(IF|THEN|ELSE|WHILE|FOR|TO|OUTPUT|INPUT|SET|AND|OR|NOT|END|ENDIF)$/i.test(t)) throw new PErr(line,`"${t}" is a keyword, not a variable name.`);
+    return {name:t.toLowerCase(), raw:t};
+  }
+
+  // ---------- one line -> statement ----------
+  function parseLine(raw, line){
+    let s=raw.replace(/\t/g,"   ");
+    const c=findOutside(s,/\/\//); if(c) s=s.slice(0,c.i);
+    s=s.trim().replace(/;$/,"").trim();
+    if(!s||s.startsWith("#")) return null;
+    s=s.replace(/<-|:=/g,"←");
+    const W=(s.split(/\s+/)[0]||"").toUpperCase().replace(/:$/,"");
+    const rest=s.slice(s.split(/\s+/)[0].length).trim();
+    const R=rest.toUpperCase();
+    // ends
+    if(/^END[\s_\-]*IF$/i.test(s)) return {k:"endif",line};
+    if(/^(END[\s_\-]*WHILE|WEND|END[\s_\-]*LOOP)$/i.test(s)) return {k:"endwhile",line};
+    if(/^(END[\s_\-]*FOR|NEXT(\s+\w+)?)$/i.test(s)) return {k:"endfor",line};
+    if(/^(START|BEGIN)\b/i.test(s) && !/[←=]/.test(s)) return {k:"skip",line};
+    if(/^(BREAK|EXIT(\s+(LOOP|WHILE|FOR|REPEAT))?)$/i.test(s)) return {k:"break",line};
+    if(/^(STOP|END|HALT|END[\s_\-]*PROGRAM|END[\s_\-]*ALGORITHM|EXIT\s+PROGRAM|STOP\s+PROGRAM)$/i.test(s)) return {k:"halt",line};
+    if(/^(PROGRAM|ALGORITHM|PROCEDURE|MAIN)\b/i.test(W)) return {k:"skip",line};
+    if(W=="DECLARE"||W=="VAR"||W=="DIM"||W=="CONSTANT"||W=="CONST"||W=="INITIALIZE"||W=="INITIALISE"){
+      if(/[←=]/.test(rest)||/\bTO\b/i.test(rest)) return parseLine("SET "+rest.replace(/\s*(:\s*\w+|AS\s+\w+)\s*(?=[←=])/i," "),line);
+      return {k:"skip",line};
+    }
+    if(["INPUT","READ","GET","ENTER","ACCEPT","ASK","SCAN","INPUTS"].includes(W)){
+      const names=stripStrings(rest).split(/[\s,]+|\bAND\b/i).map(x=>x.trim()).filter(x=>x && !/^(FROM|USER|THE|A|AN|VALUE|OF|KEYBOARD)$/i.test(x));
+      if(!names.length) throw new PErr(line,"INPUT needs a variable name to store the value, e.g. INPUT age");
+      return {k:"input", targets:names.map(n=>target(n,line)), line};
+    }
+    if(["OUTPUT","PRINT","DISPLAY","WRITE","SHOW","PRINTLN","OUTPUTS","SAY"].includes(W)){
+      if(!rest) throw new PErr(line,"OUTPUT needs something to show, e.g. OUTPUT total");
+      return {k:"output", exprs:splitTop(rest).map(p=>compileExpr(p,line)), line};
+    }
+    if(W=="INCREMENT"||W=="INCREASE"||W=="DECREMENT"||W=="DECREASE"){
+      const m=/^(\w+)(?:\s+BY\s+(.+))?$/i.exec(rest); if(!m) throw new PErr(line,"Write it like: INCREMENT count  or  INCREMENT count BY 2");
+      const t=target(m[1],line), by=m[2]||"1", op=W.startsWith("INC")?"+":"-";
+      return {k:"assign", t, e:compileExpr(m[1]+" "+op+" ("+by+")",line), line};
+    }
+    if(W=="ADD"||W=="SUBTRACT"){
+      const m= W=="ADD" ? /^(.+?)\s+TO\s+(\w+)$/i.exec(rest) : /^(.+?)\s+FROM\s+(\w+)$/i.exec(rest);
+      if(!m) throw new PErr(line, W=="ADD"?"Write it like: ADD num TO total":"Write it like: SUBTRACT cost FROM balance");
+      return {k:"assign", t:target(m[2],line), e:compileExpr(m[2]+(W=="ADD"?" + (":" - (")+m[1]+")",line), line};
+    }
+    if(["SET","LET","CALCULATE","COMPUTE","ASSIGN","STORE","UPDATE","CALC"].includes(W)) return parseAssign(rest,line,true);
+    if(W=="IF"){
+      const th=findOutside(rest,/\bTHEN\b/i);
+      const cond= th? rest.slice(0,th.i) : rest;
+      const after= th? rest.slice(th.i+th.len).trim() : "";
+      const st={k:"if", c:compileExpr(cond,line), line};
+      if(after){ // one-line IF
+        const el=findOutside(after,/\bELSE\b/i);
+        st.inlineThen=parseLine(el?after.slice(0,el.i):after,line);
+        st.inlineElse= el? parseLine(after.slice(el.i+el.len),line):null;
+      }
+      return st;
+    }
+    if(W=="ELSEIF"||W=="ELIF"||(W=="ELSE"&&/^IF\b/i.test(rest))){
+      let r= W=="ELSE"? rest.slice(2).trim(): rest; const th=findOutside(r,/\bTHEN\b/i); if(th) r=r.slice(0,th.i);
+      return {k:"elseif", c:compileExpr(r,line), line};
+    }
+    if(W=="ELSE"){ return {k:"else", inline: rest? parseLine(rest,line):null, line}; }
+    if(W=="WHILE"){
+      let r=rest; const d=findOutside(r,/\bDO\b\s*$/i); if(d) r=r.slice(0,d.i);
+      return {k:"while", c:compileExpr(r,line), line};
+    }
+    if(W=="FOR"){
+      if(/^EACH\b/i.test(rest)) throw new PErr(line,"FOR EACH is not supported here. Use FOR i ← 1 TO n");
+      const m=/^(\w+)\s*(?:←|=|FROM)\s*(.+?)\s+TO\s+(.+?)(?:\s+STEP\s+(.+?))?(?:\s+DO)?$/i.exec(rest);
+      if(!m) throw new PErr(line,"Write a FOR loop like: FOR i ← 1 TO 10");
+      return {k:"for", v:target(m[1],line), from:compileExpr(m[2],line), to:compileExpr(m[3],line), step:m[4]?compileExpr(m[4],line):null, line};
+    }
+    if(W=="REPEAT"||W=="DO"||W=="LOOP") { if(rest&&W!="REPEAT") throw new PErr(line,"Start this loop with REPEAT and end it with UNTIL condition."); return {k:"repeat",line}; }
+    if(W=="UNTIL") return {k:"until", c:compileExpr(rest,line), line};
+    if(W=="THEN") throw new PErr(line,"THEN should be at the end of the IF line, e.g. IF age > 18 THEN");
+    // plain assignment: x ← 5 / x = 5
+    if(/^[A-Za-z_]\w*(\s*\[[^\]]+\])?\s*[←=]/.test(s) && !/^[A-Za-z_]\w*\s*==/.test(s)) return parseAssign(s,line,false);
+    throw new PErr(line,`I don't understand this line. Start it with a keyword like INPUT, OUTPUT, SET, IF, WHILE or FOR.`);
+  }
+  function parseAssign(s,line,hadSet){
+    let m=findOutside(s,/←/)||findOutside(s,/=(?!=)/)||findOutside(s,/\s+TO\s+/i);
+    if(!m) throw new PErr(line,"Write it like: SET total ← total + num   (or total = total + num)");
+    const t=s.slice(0,m.i), e=s.slice(m.i+m.len);
+    if(!e.trim()) throw new PErr(line,"There is nothing after the arrow. What value should it store?");
+    return {k:"assign", t:target(t,line), e:compileExpr(e,line), line};
+  }
+
+  // ---------- program -> tree ----------
+  function parse(code){
+    const lines=code.split(/\r?\n/);
+    const root={body:[]}, stack=[{k:"root",target:root.body}];
+    const NAMES={if:"IF",while:"WHILE",for:"FOR",repeat:"REPEAT"}, ENDS={if:"ENDIF",while:"ENDWHILE",for:"ENDFOR (or NEXT)",repeat:"UNTIL"};
+    const top=()=>stack[stack.length-1];
+    const close=(kind,st)=>{
+      const f=top();
+      if(f.k==kind){ stack.pop(); return f; }
+      const word={endif:"ENDIF",endwhile:"ENDWHILE",endfor:"ENDFOR",until:"UNTIL"}[st.k];
+      if(f.k=="root") throw new PErr(st.line,`${word} has no matching ${NAMES[kind]} above it.`);
+      throw new PErr(st.line,`${word} found, but the ${NAMES[f.k]} on line ${f.node.line} is still open. Close it first with ${ENDS[f.k]}.`);
+    };
+    lines.forEach((raw,i)=>{
+      const st=parseLine(raw,i+1); if(!st||st.k=="skip") return;
+      const f=top();
+      switch(st.k){
+        case "if":
+          if(st.inlineThen!==undefined){ f.target.push({k:"if", line:st.line, branches:[{c:st.c, body:st.inlineThen&&st.inlineThen.k!="skip"?[st.inlineThen]:[]}], elseBody: st.inlineElse?[st.inlineElse]:null}); break; }
+          { const n={k:"if",line:st.line,branches:[{c:st.c,body:[]}],elseBody:null}; f.target.push(n); stack.push({k:"if",node:n,target:n.branches[0].body}); } break;
+        case "elseif":
+          if(f.k!="if") throw new PErr(st.line,"ELSE IF must come inside an IF … ENDIF block.");
+          if(f.node.elseBody) throw new PErr(st.line,"ELSE IF cannot come after ELSE.");
+          f.node.branches.push({c:st.c,body:[]}); f.target=f.node.branches[f.node.branches.length-1].body; break;
+        case "else":
+          if(f.k!="if") throw new PErr(st.line,"ELSE must come inside an IF … ENDIF block.");
+          if(f.node.elseBody) throw new PErr(st.line,"This IF already has an ELSE.");
+          f.node.elseBody=[]; f.target=f.node.elseBody; if(st.inline&&st.inline.k!="skip") f.target.push(st.inline); break;
+        case "endif": close("if",st); break;
+        case "while": { const n={k:"while",line:st.line,c:st.c,body:[]}; f.target.push(n); stack.push({k:"while",node:n,target:n.body}); } break;
+        case "endwhile": close("while",st); break;
+        case "for": { const n=Object.assign(st,{body:[]}); f.target.push(n); stack.push({k:"for",node:n,target:n.body}); } break;
+        case "endfor": close("for",st); break;
+        case "repeat": { const n={k:"repeat",line:st.line,body:[]}; f.target.push(n); stack.push({k:"repeat",node:n,target:n.body}); } break;
+        case "until": { const fr=close("repeat",st); fr.node.c=st.c; } break;
+        default: f.target.push(st);
+      }
+    });
+    if(stack.length>1){ const f=top(); throw new PErr(f.node.line,`The ${NAMES[f.k]} on line ${f.node.line} is never closed. Add ${ENDS[f.k]} at the end of the block.`); }
+    return root.body;
+  }
+
+  // ---------- run ----------
+  function fmt(v){
+    if(typeof v=="number"){ if(!isFinite(v)) return String(v); return String(Math.round(v*100)/100); }
+    if(typeof v=="boolean") return v?"TRUE":"FALSE";
+    if(v&&typeof v=="object") return "["+Object.values(v).map(fmt).join(", ")+"]";
+    return String(v);
+  }
+  function run(code, inputs, maxSteps=20000){
+    const out=[], vars={}; let steps=0, used=0; const q=[...inputs];
+    const V={ g:(n,line)=>{ if(!(n in vars)) throw new PErr(line,`"${n}" is used before it has a value. Did you forget INPUT or SET?`); return vars[n]; } };
+    const ev=(e,line)=>{ try{ return e.fn(V,F); } catch(err){ if(err instanceof PErr) throw err; throw new PErr(line,`Could not work out "${e.src}".`);} };
+    const setT=(t,val,line)=>{ if(t.index){ const ix=ev(t.index,line); if(!vars[t.name]||typeof vars[t.name]!="object") vars[t.name]={}; vars[t.name][ix]=val; } else vars[t.name]=val; };
+    const tick=line=>{ if(++steps>maxSteps) throw new PErr(line,"Stopped: the program ran too long. A loop may never end — check the loop condition changes inside the loop."); };
+    const exec=body=>{ for(const s of body){ tick(s.line);
+      switch(s.k){
+        case "input": for(const t of s.targets){ if(!q.length) throw new PErr(s.line,"The program asked for more INPUT than this test gives. Does it keep asking when it should stop?"); let v=q.shift(); used++; if(typeof v=="string"&&v.trim()!==""&&!isNaN(+v)) v=+v; setT(t,v,s.line);} break;
+        case "output": out.push(s.exprs.map(e=>fmt(ev(e,s.line))).join(" ")); break;
+        case "assign": setT(s.t, ev(s.e,s.line), s.line); break;
+        case "if": { let done=false; for(const b of s.branches){ if(ev(b.c,s.line)){ exec(b.body); done=true; break; } } if(!done&&s.elseBody) exec(s.elseBody); } break;
+        case "while": while(ev(s.c,s.line)){ tick(s.line); try{ exec(s.body);}catch(x){ if(x===BRK) break; throw x;} } break;
+        case "for": { const a=ev(s.from,s.line), b=ev(s.to,s.line), st=s.step?ev(s.step,s.line):1; if(st==0) throw new PErr(s.line,"STEP cannot be 0.");
+          for(let i=a; st>0? i<=b : i>=b; i+=st){ tick(s.line); vars[s.v.name]=i; try{ exec(s.body);}catch(x){ if(x===BRK) break; throw x;} i=vars[s.v.name]; } } break;
+        case "repeat": do{ tick(s.line); try{ exec(s.body);}catch(x){ if(x===BRK) break; throw x;} } while(!ev(s.c,s.line)); break;
+        case "break": throw BRK;
+        case "halt": throw HALT;
+      } } };
+    try{ const prog=parse(code); if(!prog.length) return {ok:false,out,error:{line:0,msg:"Your pseudocode is empty."}}; try{ exec(prog); }catch(x){ if(x===BRK) throw new PErr(0,"BREAK must be inside a loop."); if(x!==HALT) throw x; } return {ok:true,out,used,left:q.length,vars}; }
+    catch(e){ return {ok:false,out,error:{line:e.line||0,msg:e instanceof PErr?e.message:"Something went wrong: "+e.message}}; }
+  }
+  function check(code){ try{ parse(code); return null; } catch(e){ return {line:e.line||0,msg:e.message}; } }
+
+  // ---------- test checking ----------
+  const nums=s=>(s.match(/-?\d+(\.\d+)?/g)||[]).map(Number);
+  function judge(test, res){
+    if(!res.ok) return {pass:false, why:"Line "+res.error.line+": "+res.error.msg};
+    const all=res.out.join("\n"), low=all.toLowerCase(), N=nums(all);
+    if(test.seq){
+      const lines=res.out.map(x=>x.trim().toLowerCase()), want=test.seq.map(x=>x.toLowerCase());
+      for(let st=0; st+want.length<=lines.length; st++){ if(want.every((w,k)=>lines[st+k]==w||(!isNaN(+w)&&+lines[st+k]==+w))) return {pass:true}; }
+      return {pass:false, why:"Expected the lines: "+test.seq.join(", ")};
+    }
+    for(const e of test.expect||[]){
+      if(!isNaN(+e)){ if(!N.some(n=>Math.abs(n-(+e))<0.011)) return {pass:false, why:`Expected to see ${e} in the output.`}; }
+      else if(!low.includes(e.toLowerCase())) return {pass:false, why:`Expected to see "${e}" in the output.`};
+    }
+    for(const r of test.reject||[]){ if(new RegExp("\\b"+r+"\\b","i").test(all)) return {pass:false, why:`"${r}" should NOT be shown for this input.`}; }
+    return {pass:true};
+  }
+  function runTests(code, tests){ return tests.map(t=>{ const r=run(code,t.in); return Object.assign({test:t, res:r}, judge(t,r)); }); }
+
+  // ---------- rough Java translation ----------
+  function toJava(code, cls="Main"){
+    let tree; try{ tree=parse(code); } catch(e){ return null; }
+    const declared={}, L=[]; let needScanner=false;
+    const pad=n=>"    ".repeat(n);
+    const typeOf=e=>{ if(!e) return "double"; const t=e.toks; if(t.length==1&&t[0].t=="str") return "String"; if(t.some(x=>x.t=="str")) return "String"; if(t.length==1&&t[0].t=="num"&&!t[0].v.includes(".")) return "int"; if(t.length==1&&t[0].t=="id"&&/^(true|false)$/i.test(t[0].v)) return "boolean"; return "double"; };
+    const jx=e=>e.java.replace(/\s+/g," ").replace(/\( /g,"(").replace(/ \)/g,")").replace(/ ,/g,",");
+    const decl=(t,type,val,d)=>{ if(t.index){ L.push(pad(d)+`${t.raw}[${jx(t.index)}] = ${val};`); return; } if(declared[t.name]) L.push(pad(d)+`${t.raw} = ${val};`); else { declared[t.name]=type; L.push(pad(d)+`${type} ${t.raw} = ${val};`);} };
+    const walk=(body,d)=>{ for(const s of body){ switch(s.k){
+      case "input": needScanner=true; for(const t of s.targets){ const st=strIn(t.name); decl(t, st?"String":"double", st?"sc.next()":"sc.nextDouble()", d);} break;
+      case "output": L.push(pad(d)+`System.out.println(${s.exprs.map(jx).join(' + " " + ')});`); break;
+      case "assign": { let ty=typeOf(s.e); if(ty=="int"&&!isInt(s.t.name)) ty="double"; decl(s.t, ty, jx(s.e), d); } break;
+      case "if": s.branches.forEach((b,k)=>{ L.push(pad(d)+(k? "} else if (":"if (")+jx(b.c)+") {"); walk(b.body,d+1); }); if(s.elseBody){ L.push(pad(d)+"} else {"); walk(s.elseBody,d+1);} L.push(pad(d)+"}"); break;
+      case "while": L.push(pad(d)+`while (${jx(s.c)}) {`); walk(s.body,d+1); L.push(pad(d)+"}"); break;
+      case "for": { const st=s.step?jx(s.step):"1", neg=st.trim().startsWith("-"); const v=s.v.raw; const dec=declared[s.v.name]?"":"int "; declared[s.v.name]="int";
+        L.push(pad(d)+`for (${dec}${v} = ${jx(s.from)}; ${v} ${neg?">=":"<="} ${jx(s.to)}; ${st=="1"?v+"++":v+" += "+st}) {`); walk(s.body,d+1); L.push(pad(d)+"}"); } break;
+      case "break": L.push(pad(d)+"break;"); break;
+      case "halt": if(!(d==2&&s===tree[tree.length-1])) L.push(pad(d)+"return;"); break;
+      case "repeat": L.push(pad(d)+"do {"); walk(s.body,d+1); L.push(pad(d)+`} while (!(${jx(s.c)}));`); break;
+    } } };
+    // pre-pass: a variable is int only if every value it gets is a whole-number literal or itself ± a whole number
+    const asg={}; const pre=b=>b.forEach(s=>{ if(s.k=="assign"&&!s.t.index)(asg[s.t.name]=asg[s.t.name]||[]).push(s.e); if(s.k=="input") s.targets.forEach(t=>(asg[t.name]=asg[t.name]||[]).push(null));
+      (s.body||[]).length&&pre(s.body); (s.branches||[]).forEach(x=>pre(x.body)); s.elseBody&&pre(s.elseBody); }); pre(tree);
+    const isInt=n=>(asg[n]||[]).every(e=>{ if(!e) return false; const t=e.toks; if(t.length==1&&t[0].t=="num") return !t[0].v.includes(".");
+      return t.length>=3&&t[0].t=="id"&&t[0].v.toLowerCase()==n&&t[1].t=="op"&&/[+\-]/.test(t[1].v)&&t.slice(2).every(x=>x.t=="num"&&!x.v.includes(".")||(x.t=="op"&&/[()]/.test(x.v))); });
+    const strIn=n=>/name|pass|word|text|answer|city|colour|color|letter|choice/i.test(n);
+    walk(tree,2);
+    const head=[]; if(needScanner) head.push("import java.util.Scanner;",""); head.push(`public class ${cls} {`, pad(1)+"public static void main(String[] args) {"); if(needScanner) head.push(pad(2)+"Scanner sc = new Scanner(System.in);");
+    return head.concat(L,[pad(1)+"}","}"]).join("\n");
+  }
+
+  return {run, check, parse, runTests, judge, toJava};
+})();
+if(typeof module!=="undefined") module.exports=PR;
+
+/* Questions are encoded so answers are not visible in the page source. Edit src/content.js and rebuild. */
+const CONTENT=JSON.parse(new TextDecoder().decode(Uint8Array.from(atob("eyJyb3VuZHMiOlt7ImlkIjoicjEiLCJ0aXRsZSI6IlJvdW5kIDEgwrcgUHV0IGl0IGluIG9yZGVyIiwiaWNvbiI6IvCfp6kiLCJtaW51dGVzIjoxMCwiaW50cm8iOiJUYXAgdGhlIGxpbmVzIGluIHRoZSBjb3JyZWN0IG9yZGVyIHRvIGJ1aWxkIHRoZSBwc2V1ZG9jb2RlLiBUYXAgYSBwbGFjZWQgbGluZSB0byBzZW5kIGl0IGJhY2suIiwidHlwZSI6Im9yZGVyIiwidGFza3MiOlt7ImlkIjoicjFhIiwibmFtZSI6IkV2ZW4gb3IgT2RkIiwidGFzayI6IlJlYWQgYSBudW1iZXIgYW5kIHNheSBpZiBpdCBpcyBFdmVuIG9yIE9kZC4iLCJsaW5lcyI6WyJTVEFSVCIsIklOUFVUIG51bWJlciIsIklGIG51bWJlciBNT0QgMiA9IDAgVEhFTiIsIk9VVFBVVCBcIkV2ZW5cIiIsIkVMU0UiLCJPVVRQVVQgXCJPZGRcIiIsIkVORElGIiwiRU5EIl19LHsiaWQiOiJyMWIiLCJuYW1lIjoiQmlnZ2VyIG51bWJlciIsInRhc2siOiJSZWFkIHR3byBudW1iZXJzIGFuZCBzaG93IHRoZSBiaWdnZXIgb25lLiIsImxpbmVzIjpbIlNUQVJUIiwiSU5QVVQgYSIsIklOUFVUIGIiLCJJRiBhID4gYiBUSEVOIiwiT1VUUFVUIGEiLCJFTFNFIiwiT1VUUFVUIGIiLCJFTkRJRiIsIkVORCJdLCJzd2FwcyI6W1sxLDJdXX0seyJpZCI6InIxYyIsIm5hbWUiOiJDb3VudGRvd24iLCJ0YXNrIjoiQ291bnQgZG93biBmcm9tIDEwIHRvIDEsIHRoZW4gc2hvdyBcIkxpZnQgb2ZmIVwiLiIsImxpbmVzIjpbIlNUQVJUIiwiU0VUIGNvdW50IOKGkCAxMCIsIldISUxFIGNvdW50ID4gMCIsIk9VVFBVVCBjb3VudCIsIlNFVCBjb3VudCDihpAgY291bnQgLSAxIiwiRU5EV0hJTEUiLCJPVVRQVVQgXCJMaWZ0IG9mZiFcIiIsIkVORCJdfSx7ImlkIjoicjFkIiwibmFtZSI6IlRvdGFsIG9mIDUgbnVtYmVycyIsInRhc2siOiJSZWFkIDUgbnVtYmVycyBhbmQgc2hvdyB0aGVpciB0b3RhbC4iLCJsaW5lcyI6WyJTVEFSVCIsIlNFVCB0b3RhbCDihpAgMCIsIkZPUiBpIOKGkCAxIFRPIDUiLCJJTlBVVCBudW0iLCJTRVQgdG90YWwg4oaQIHRvdGFsICsgbnVtIiwiRU5ERk9SIiwiT1VUUFVUIHRvdGFsIiwiRU5EIl19XX0seyJpZCI6InIyIiwidGl0bGUiOiJSb3VuZCAyIMK3IEphdmEg4oaSIFBzZXVkb2NvZGUiLCJpY29uIjoi4piVIiwibWludXRlcyI6MTAsImludHJvIjoiUmVhZCB0aGUgSmF2YSBjb2RlLiBQaWNrIHRoZSBtaXNzaW5nIHdvcmRzIHNvIHRoZSBwc2V1ZG9jb2RlIGRvZXMgdGhlIFNBTUUgam9iLiBTZWUgaG93IG11Y2ggc2ltcGxlciBwc2V1ZG9jb2RlIGlzISIsInR5cGUiOiJmaWxsIiwidGFza3MiOlt7ImlkIjoicjJhIiwibmFtZSI6IkFkdWx0IG9yIE1pbm9yIiwiamF2YSI6ImludCBhZ2UgPSBzYy5uZXh0SW50KCk7XG5pZiAoYWdlID49IDE4KSB7XG4gICAgU3lzdGVtLm91dC5wcmludGxuKFwiQWR1bHRcIik7XG59IGVsc2Uge1xuICAgIFN5c3RlbS5vdXQucHJpbnRsbihcIk1pbm9yXCIpO1xufSIsInBzZXVkbyI6IltbSU5QVVR8T1VUUFVUfFNFVF1dIGFnZVxuSUYgYWdlIFtbPj18PD18PV1dIDE4IFRIRU5cbiAgIE9VVFBVVCBcIkFkdWx0XCJcbltbRUxTRXxFTkRJRnxXSElMRV1dXG4gICBPVVRQVVQgXCJNaW5vclwiXG5bW0VORElGfEVORFdISUxFfEVOREZPUl1dIn0seyJpZCI6InIyYiIsIm5hbWUiOiJUaW1lcyB0YWJsZSBvZiA1IiwiamF2YSI6ImZvciAoaW50IGkgPSAxOyBpIDw9IDEwOyBpKyspIHtcbiAgICBTeXN0ZW0ub3V0LnByaW50bG4oaSAqIDUpO1xufSIsInBzZXVkbyI6IltbRk9SfFdISUxFfElGXV0gaSDihpAgMSBbW1RPfFRIRU58VU5USUxdXSAxMFxuICAgT1VUUFVUIGkgW1sqfCt8L11dIDVcbltbRU5ERk9SfEVORElGfEVORFdISUxFXV0ifSx7ImlkIjoicjJjIiwibmFtZSI6IkFkZCB1bnRpbCAxMDAiLCJqYXZhIjoiaW50IHRvdGFsID0gMDtcbndoaWxlICh0b3RhbCA8IDEwMCkge1xuICAgIGludCBuID0gc2MubmV4dEludCgpO1xuICAgIHRvdGFsID0gdG90YWwgKyBuO1xufVxuU3lzdGVtLm91dC5wcmludGxuKHRvdGFsKTsiLCJwc2V1ZG8iOiJTRVQgdG90YWwg4oaQIFtbMHwxMDB8bl1dXG5bW1dISUxFfEZPUnxJRl1dIHRvdGFsIFtbPHw+fD1dXSAxMDBcbiAgIFtbSU5QVVR8T1VUUFVUfFNFVF1dIG5cbiAgIFNFVCB0b3RhbCDihpAgdG90YWwgW1srfC18Kl1dIG5cbltbRU5EV0hJTEV8RU5ERk9SfEVORElGXV1cbk9VVFBVVCBbW3RvdGFsfG58MTAwXV0ifSx7ImlkIjoicjJkIiwibmFtZSI6IkxvZ2luIGNoZWNrIiwiamF2YSI6IlN0cmluZyBwYXNzID0gc2MubmV4dExpbmUoKTtcbmlmIChwYXNzLmVxdWFscyhcImFiYzEyM1wiKSkge1xuICAgIFN5c3RlbS5vdXQucHJpbnRsbihcIldlbGNvbWVcIik7XG59IGVsc2Uge1xuICAgIFN5c3RlbS5vdXQucHJpbnRsbihcIlRyeSBhZ2FpblwiKTtcbn0iLCJwc2V1ZG8iOiJJTlBVVCBbW3Bhc3N8XCJhYmMxMjNcInxXZWxjb21lXV1cbltbSUZ8V0hJTEV8Rk9SXV0gcGFzcyA9IFwiYWJjMTIzXCIgW1tUSEVOfERPfFRPXV1cbiAgIE9VVFBVVCBcIldlbGNvbWVcIlxuRUxTRVxuICAgW1tPVVRQVVR8SU5QVVR8U0VUXV0gXCJUcnkgYWdhaW5cIlxuRU5ESUYifV19LHsiaWQiOiJyMyIsInRpdGxlIjoiUm91bmQgMyDCtyBCdWcgaHVudCIsImljb24iOiLwn5CeIiwibWludXRlcyI6MTAsImludHJvIjoiRWFjaCBwc2V1ZG9jb2RlIGhhcyBPTkUgd3JvbmcgbGluZS4gUmVhZCB0aGUgdGFzaywgdHJhY2UgdGhlIGNvZGUsIGFuZCB0YXAgdGhlIGxpbmUgd2l0aCB0aGUgYnVnLiIsInR5cGUiOiJidWciLCJ0YXNrcyI6W3siaWQiOiJyM2EiLCJuYW1lIjoiQXZlcmFnZSBvZiAzIG1hcmtzIiwidGFzayI6IlJlYWQgMyBtYXJrcyBhbmQgc2hvdyB0aGUgYXZlcmFnZS4iLCJsaW5lcyI6WyJJTlBVVCBtMSwgbTIsIG0zIiwiU0VUIGF2ZyDihpAgbTEgKyBtMiArIG0zIC8gMyIsIk9VVFBVVCBhdmciXSwiYnVnIjoxLCJ3aHkiOiJEaXZpc2lvbiBoYXBwZW5zIGJlZm9yZSBhZGRpdGlvbi4gSXQgbXVzdCBiZSAobTEgKyBtMiArIG0zKSAvIDMuIn0seyJpZCI6InIzYiIsIm5hbWUiOiJTaG93IDEgdG8gNSIsInRhc2siOiJTaG93IHRoZSBudW1iZXJzIDEsIDIsIDMsIDQsIDUuIiwibGluZXMiOlsiU0VUIGkg4oaQIDEiLCJXSElMRSBpIDw9IDUiLCIgICBPVVRQVVQgaSIsIiAgIFNFVCBpIOKGkCBpIC0gMSIsIkVORFdISUxFIl0sImJ1ZyI6Mywid2h5IjoiaSBnb2VzIERPV04gKDEsIDAsIC0xIOKApikgc28gdGhlIGxvb3AgbmV2ZXIgZW5kcy4gSXQgbXVzdCBiZSBpIOKGkCBpICsgMS4ifSx7ImlkIjoicjNjIiwibmFtZSI6IlBhc3MgbWFyayIsInRhc2siOiJBIG1hcmsgb2YgNDAgb3IgbW9yZSBpcyBhIFBhc3MuIEJlbG93IDQwIGlzIGEgRmFpbC4iLCJsaW5lcyI6WyJJTlBVVCBtYXJrIiwiSUYgbWFyayA+IDQwIFRIRU4iLCIgICBPVVRQVVQgXCJQYXNzXCIiLCJFTFNFIiwiICAgT1VUUFVUIFwiRmFpbFwiIiwiRU5ESUYiXSwiYnVnIjoxLCJ3aHkiOiJBIG1hcmsgb2YgZXhhY3RseSA0MCB3b3VsZCBGYWlsLiBJdCBtdXN0IGJlIG1hcmsgPj0gNDAuIn0seyJpZCI6InIzZCIsIm5hbWUiOiJTd2FwIHR3byB2YWx1ZXMiLCJ0YXNrIjoiU3dhcCB0aGUgdmFsdWVzIG9mIGEgYW5kIGIgdXNpbmcgdGVtcC4iLCJsaW5lcyI6WyJTRVQgdGVtcCDihpAgYSIsIlNFVCBhIOKGkCBiIiwiU0VUIGIg4oaQIGEiXSwiYnVnIjoyLCJ3aHkiOiJhIHdhcyBhbHJlYWR5IGNoYW5nZWQsIHNvIGIgZ2V0cyBpdHMgb3duIHZhbHVlIGJhY2suIEl0IG11c3QgYmUgYiDihpAgdGVtcC4ifSx7ImlkIjoicjNlIiwibmFtZSI6IkJpZ2dlc3Qgb2YgYSBsaXN0IiwidGFzayI6IlJlYWQgNSBudW1iZXJzIGFuZCBzaG93IHRoZSBiaWdnZXN0LiIsImxpbmVzIjpbIlNFVCBtYXgg4oaQIDAiLCJGT1IgaSDihpAgMSBUTyA1IiwiICAgSU5QVVQgbiIsIiAgIElGIG4gPCBtYXggVEhFTiIsIiAgICAgIFNFVCBtYXgg4oaQIG4iLCIgICBFTkRJRiIsIkVOREZPUiIsIk9VVFBVVCBtYXgiXSwiYnVnIjozLCJ3aHkiOiJJdCBrZWVwcyB0aGUgU01BTExFUiBudW1iZXIuIEl0IG11c3QgYmUgbiA+IG1heC4ifV19LHsiaWQiOiJyNCIsInRpdGxlIjoiUm91bmQgNCDCtyBQcm9ibGVtIOKGkiBQc2V1ZG9jb2RlIiwiaWNvbiI6IvCfmoAiLCJtaW51dGVzIjozNSwiaW50cm8iOiJOb3cgWU9VIHdyaXRlIHRoZSBwc2V1ZG9jb2RlLiBVc2UgXCJXaGVyZSBkbyBJIHN0YXJ0P1wiIGlmIHlvdSBhcmUgc3R1Y2suIFByZXNzIOKWtiBSdW4gdG8gdGVzdCBpdCwgdGhlbiBTdWJtaXQgdG8gdGhlIGNsYXNzIHdhbGwuIiwidHlwZSI6IndyaXRlIiwidGFza3MiOlt7ImlkIjoicjRhIiwibmFtZSI6IlJlY3RhbmdsZSBjYWxjdWxhdG9yIiwibGV2ZWwiOiJFYXN5IiwidGFzayI6IlJlYWQgdGhlIGxlbmd0aCBhbmQgd2lkdGggb2YgYSByZWN0YW5nbGUuIFNob3cgaXRzIGFyZWEgYW5kIGl0cyBwZXJpbWV0ZXIuIiwiaGludCI6eyJpbnB1dHMiOiJsZW5ndGgsIHdpZHRoIiwib3V0cHV0cyI6ImFyZWEsIHBlcmltZXRlciIsImNhbGMiOnRydWV9LCJuZWVkcyI6e30sInRlc3RzIjpbeyJpbiI6WzUsM10sImV4cGVjdCI6WyIxNSIsIjE2Il19LHsiaW4iOlsxMCw0XSwiZXhwZWN0IjpbIjQwIiwiMjgiXX0seyJpbiI6WzcsN10sImV4cGVjdCI6WyI0OSIsIjI4Il19XX0seyJpZCI6InI0YiIsIm5hbWUiOiJITkQgZ3JhZGUiLCJsZXZlbCI6IkVhc3kiLCJ0YXNrIjoiUmVhZCBhIG1hcmsgKDDigJMxMDApLiBTaG93IFwiRGlzdGluY3Rpb25cIiBpZiBpdCBpcyA3MCBvciBtb3JlLCBcIk1lcml0XCIgaWYgNjAgb3IgbW9yZSwgXCJQYXNzXCIgaWYgNDAgb3IgbW9yZSwgb3RoZXJ3aXNlIFwiRmFpbFwiLiIsImhpbnQiOnsiaW5wdXRzIjoibWFyayIsIm91dHB1dHMiOiJncmFkZSB3b3JkIiwiZGVjaXNpb24iOnRydWV9LCJuZWVkcyI6eyJkZWNpc2lvbiI6dHJ1ZX0sInRlc3RzIjpbeyJpbiI6Wzc1XSwiZXhwZWN0IjpbIkRpc3RpbmN0aW9uIl0sInJlamVjdCI6WyJNZXJpdCIsIkZhaWwiXX0seyJpbiI6WzYwXSwiZXhwZWN0IjpbIk1lcml0Il0sInJlamVjdCI6WyJEaXN0aW5jdGlvbiIsIkZhaWwiXX0seyJpbiI6WzQ1XSwiZXhwZWN0IjpbIlBhc3MiXSwicmVqZWN0IjpbIk1lcml0IiwiRGlzdGluY3Rpb24iLCJGYWlsIl19LHsiaW4iOlsxMl0sImV4cGVjdCI6WyJGYWlsIl0sInJlamVjdCI6WyJQYXNzIiwiTWVyaXQiLCJEaXN0aW5jdGlvbiJdfV19LHsiaWQiOiJyNGMiLCJuYW1lIjoiU2hvcCBiaWxsIHdpdGggZGlzY291bnQiLCJsZXZlbCI6Ik1lZGl1bSIsInRhc2siOiJSZWFkIHRoZSBwcmljZSBvZiBvbmUgaXRlbSBhbmQgdGhlIHF1YW50aXR5LiBUb3RhbCA9IHByaWNlIMOXIHF1YW50aXR5LiBJZiB0aGUgdG90YWwgaXMgbW9yZSB0aGFuIDUwMDAsIHRha2UgMTAlIG9mZi4gU2hvdyB0aGUgZmluYWwgYW1vdW50IHRvIHBheS4iLCJoaW50Ijp7ImlucHV0cyI6InByaWNlLCBxdWFudGl0eSIsIm91dHB1dHMiOiJmaW5hbCBhbW91bnQiLCJjYWxjIjp0cnVlLCJkZWNpc2lvbiI6dHJ1ZX0sIm5lZWRzIjp7ImRlY2lzaW9uIjp0cnVlfSwidGVzdHMiOlt7ImluIjpbMTAwMCw2XSwiZXhwZWN0IjpbIjU0MDAiXX0seyJpbiI6WzIwMCwzXSwiZXhwZWN0IjpbIjYwMCJdfSx7ImluIjpbMjUwMCwyXSwiZXhwZWN0IjpbIjUwMDAiXX1dfSx7ImlkIjoicjRkIiwibmFtZSI6IkNsYXNzIGF2ZXJhZ2UiLCJsZXZlbCI6Ik1lZGl1bSIsInRhc2siOiJGaXJzdCByZWFkIGhvdyBtYW55IHN0dWRlbnRzIChuKS4gVGhlbiByZWFkIG4gbWFya3MsIG9uZSBieSBvbmUuIFNob3cgdGhlIHRvdGFsIGFuZCB0aGUgYXZlcmFnZS4iLCJoaW50Ijp7ImlucHV0cyI6Im4sIHRoZW4gbiBtYXJrcyIsIm91dHB1dHMiOiJ0b3RhbCwgYXZlcmFnZSIsImNhbGMiOnRydWUsImxvb3AiOnRydWV9LCJuZWVkcyI6eyJsb29wIjp0cnVlfSwidGVzdHMiOlt7ImluIjpbMywxMCwyMCwzMF0sImV4cGVjdCI6WyI2MCIsIjIwIl19LHsiaW4iOls0LDUwLDcwLDgwLDQwXSwiZXhwZWN0IjpbIjI0MCIsIjYwIl19LHsiaW4iOlsxLDk5XSwiZXhwZWN0IjpbIjk5Il19XX0seyJpZCI6InI0ZSIsIm5hbWUiOiJBVE0gUElOICgzIHRyaWVzKSIsImxldmVsIjoiSGFyZCIsInRhc2siOiJUaGUgY29ycmVjdCBQSU4gaXMgMTIzNC4gTGV0IHRoZSB1c2VyIHRyeSB1cCB0byAzIHRpbWVzLiBJZiB0aGV5IGdldCBpdCByaWdodCwgc2hvdyBcIkFjY2VzcyBncmFudGVkXCIgYW5kIHN0b3AgYXNraW5nLiBBZnRlciAzIHdyb25nIHRyaWVzLCBzaG93IFwiQ2FyZCBibG9ja2VkXCIuIiwiaGludCI6eyJpbnB1dHMiOiJwaW4gKHVwIHRvIDMgdGltZXMpIiwib3V0cHV0cyI6IlwiQWNjZXNzIGdyYW50ZWRcIiBvciBcIkNhcmQgYmxvY2tlZFwiIiwiZGVjaXNpb24iOnRydWUsImxvb3AiOnRydWV9LCJuZWVkcyI6eyJkZWNpc2lvbiI6dHJ1ZSwibG9vcCI6dHJ1ZX0sInRlc3RzIjpbeyJpbiI6WzEyMzRdLCJleHBlY3QiOlsiZ3JhbnRlZCJdLCJyZWplY3QiOlsiYmxvY2tlZCJdfSx7ImluIjpbMTExMSwxMjM0XSwiZXhwZWN0IjpbImdyYW50ZWQiXSwicmVqZWN0IjpbImJsb2NrZWQiXX0seyJpbiI6WzEsMiwzXSwiZXhwZWN0IjpbImJsb2NrZWQiXSwicmVqZWN0IjpbImdyYW50ZWQiXX1dfSx7ImlkIjoicjRmIiwibmFtZSI6IkZpenpCdXp6IiwibGV2ZWwiOiJIYXJkIiwidGFzayI6IlJlYWQgYSBudW1iZXIgbi4gRm9yIGV2ZXJ5IG51bWJlciBmcm9tIDEgdG8gbjogc2hvdyBcIkZpenpCdXp6XCIgaWYgaXQgZGl2aWRlcyBieSAzIGFuZCA1LCBcIkZpenpcIiBpZiBpdCBkaXZpZGVzIGJ5IDMsIFwiQnV6elwiIGlmIGl0IGRpdmlkZXMgYnkgNSwgb3RoZXJ3aXNlIHRoZSBudW1iZXIgaXRzZWxmLiIsImhpbnQiOnsiaW5wdXRzIjoibiIsIm91dHB1dHMiOiJvbmUgbGluZSBwZXIgbnVtYmVyIiwiZGVjaXNpb24iOnRydWUsImxvb3AiOnRydWV9LCJuZWVkcyI6eyJkZWNpc2lvbiI6dHJ1ZSwibG9vcCI6dHJ1ZX0sInRlc3RzIjpbeyJpbiI6WzVdLCJzZXEiOlsiMSIsIjIiLCJGaXp6IiwiNCIsIkJ1enoiXX0seyJpbiI6WzE1XSwic2VxIjpbIjEiLCIyIiwiRml6eiIsIjQiLCJCdXp6IiwiRml6eiIsIjciLCI4IiwiRml6eiIsIkJ1enoiLCIxMSIsIkZpenoiLCIxMyIsIjE0IiwiRml6ekJ1enoiXX1dfV19XX0="),c=>c.charCodeAt(0))));
+/* ============================================================
+   PSEUDOCODE QUEST — APP
+   ============================================================ */
+const FIREBASE_CONFIG = {
+  apiKey: "AIzaSyB_51_vMnJL4yqPXZ2EeG5OUawMzQUgiI0",
+  authDomain: "java-quiz-5bd48.firebaseapp.com",
+  databaseURL: "https://java-quiz-5bd48-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId: "java-quiz-5bd48",
+  storageBucket: "java-quiz-5bd48.firebasestorage.app",
+  messagingSenderId: "633405575771",
+  appId: "1:633405575771:web:d5b795c13f78bad980a57e"
+};
+const ROUNDS = CONTENT.rounds;
+const TASKS = {}; ROUNDS.forEach((r,ri)=>r.tasks.forEach(t=>{ t.round=ri; TASKS[t.id]=t; }));
+const STAR = 50;
+
+const $ = id => document.getElementById(id);
+const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const show = id => { document.querySelectorAll('.screen').forEach(s=>s.classList.remove('on')); $(id).classList.add('on'); window.scrollTo(0,0); };
+const shuffle = a => { a=[...a]; for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];} return a; };
+const store = { get:(k,d)=>{ try{ const v=localStorage.getItem(k); return v==null?d:JSON.parse(v);}catch(e){return d;} }, set:(k,v)=>{ try{localStorage.setItem(k,JSON.stringify(v));}catch(e){} } };
+const fmtTime = ms => { ms=Math.max(0,ms); const s=Math.ceil(ms/1000); return String(Math.floor(s/60)).padStart(2,'0')+":"+String(s%60).padStart(2,'0'); };
+
+/* ---------- sound (no files needed) ---------- */
+let AC=null;
+function beep(notes){ try{ AC=AC||new (window.AudioContext||window.webkitAudioContext)(); let t=AC.currentTime;
+  notes.forEach(([f,d,type])=>{ const o=AC.createOscillator(), g=AC.createGain(); o.type=type||'triangle'; o.frequency.value=f; g.gain.setValueAtTime(.18,t); g.gain.exponentialRampToValueAtTime(.001,t+d); o.connect(g); g.connect(AC.destination); o.start(t); o.stop(t+d); t+=d*.8; }); }catch(e){} }
+const SFX = { ok:()=>beep([[523,.12],[659,.12],[784,.25]]), bad:()=>beep([[180,.25,'sawtooth']]), pop:()=>beep([[880,.08]]), star:()=>beep([[784,.1],[988,.1],[1319,.3]]), start:()=>beep([[392,.15],[523,.15],[659,.15],[784,.35]]) };
+
+function flyPoints(n){ const d=document.createElement('div'); d.className='fly'+(n<0?' neg':''); d.textContent=(n>0?'+':'')+n; document.body.appendChild(d); setTimeout(()=>d.remove(),1500); }
+function toast(msg, gold){ document.querySelectorAll('.toast').forEach(t=>t.remove()); const d=document.createElement('div'); d.className='toast'+(gold?' gold':''); d.innerHTML=msg; document.body.appendChild(d); setTimeout(()=>d.remove(),3800); }
+
+/* ---------- confetti ---------- */
+function confetti(ms=5000){ const c=$('confetti'), x=c.getContext('2d'); c.width=innerWidth; c.height=innerHeight;
+  const cols=['#f2c94c','#2f6fd6','#1f9d55','#e5484d','#ffffff','#7c5cd6'];
+  const P=Array.from({length:180},()=>({x:Math.random()*c.width,y:-20-Math.random()*c.height,r:4+Math.random()*6,c:cols[Math.random()*6|0],vy:2+Math.random()*3,vx:-1+Math.random()*2,a:Math.random()*6}));
+  const end=Date.now()+ms; (function f(){ x.clearRect(0,0,c.width,c.height); P.forEach(p=>{p.y+=p.vy;p.x+=p.vx;p.a+=.1; if(p.y>c.height&&Date.now()<end){p.y=-10;} x.save();x.translate(p.x,p.y);x.rotate(p.a);x.fillStyle=p.c;x.fillRect(-p.r/2,-p.r/2,p.r,p.r*1.6);x.restore();});
+    if(P.some(p=>p.y<c.height+20)) requestAnimationFrame(f); else x.clearRect(0,0,c.width,c.height); })(); }
+
+/* ---------- firebase ---------- */
+let db=null, offset=0;
+if(window.firebase){ firebase.initializeApp(FIREBASE_CONFIG); db=firebase.database(); db.ref('.info/serverTimeOffset').on('value',s=>offset=s.val()||0); }
+else { $('setupwarn').hidden=false; $('setupwarn').textContent="Could not load Firebase. Check the internet connection and reload."; }
+const now = () => Date.now()+offset;
+const TS = () => firebase.database.ServerValue.TIMESTAMP;
+const G = code => db.ref('games/pq-'+code);
+const gameUrl = code => location.origin+location.pathname+'?game='+code;
+
+/* ---------- auto-indent helper for shown code ---------- */
+function indentLines(lines){ let d=0; return lines.map(l=>{ const u=l.trim().toUpperCase(); if(/^(END|ENDIF|ENDWHILE|ENDFOR|NEXT|UNTIL|ELSE)/.test(u) && !/^END$/.test(u)) d=Math.max(0,d-1); const out="   ".repeat(d)+l.trim(); if(/^(IF|WHILE|FOR|REPEAT|ELSE)/.test(u) && !(/^IF/.test(u)&&/THEN\s+\S/.test(u))) d++; return out; }); }
+
+/* ==================================================================
+   STUDENT
+   ================================================================== */
+const P = { code:null, pid:null, name:"", state:null, done:{}, score:0, players:{}, view:"list", task:null, timerInt:null, myWall:{} };
+
+$('in-code').value = (new URLSearchParams(location.search).get('game')||"").replace(/\D/g,'').slice(0,4);
+$('in-name').value = store.get('pq-name','');
+if($('in-code').value) setTimeout(()=>$('in-name').focus(),100);
+$('in-name').addEventListener('keydown',e=>{ if(e.key=='Enter') $('b-join').click(); });
+$('b-join').onclick = joinGame;
+
+async function joinGame(){
+  const code=$('in-code').value.trim(), name=$('in-name').value.trim().replace(/\s+/g,' ');
+  const err=$('join-err'); err.textContent="";
+  if(!/^\d{4}$/.test(code)) return err.textContent="Type the 4-digit room code from the screen.";
+  if(name.length<2) return err.textContent="Type your name (at least 2 letters).";
+  if(!db) return err.textContent="No connection to the game server.";
+  $('b-join').disabled=true;
+  try{
+    const st=await G(code).child('state').once('value');
+    if(!st.exists()){ err.textContent="Room "+code+" not found. Check the code."; $('b-join').disabled=false; return; }
+    store.set('pq-name',name);
+    const saved=store.get('pq-player',null);
+    let pid;
+    if(saved&&saved.code==code&&saved.name==name&&(await G(code).child('players/'+saved.pid).once('value')).exists()) pid=saved.pid;
+    else { pid=G(code).child('players').push().key; await G(code).child('players/'+pid).set({name,score:0,joined:TS()}); }
+    store.set('pq-player',{code,pid,name});
+    Object.assign(P,{code,pid,name});
+    startPlayer();
+  }catch(e){ err.textContent="Could not join: "+e.message; $('b-join').disabled=false; }
+}
+
+function startPlayer(){
+  show('s-play'); $('p-name').textContent=P.name; SFX.pop();
+  const g=G(P.code);
+  g.child('state').on('value',s=>{ const old=P.state; P.state=s.val()||{phase:'lobby'}; onState(old); });
+  g.child('done/'+P.pid).on('value',s=>{ P.done=s.val()||{}; if(P.view=="list") renderPlayer(); });
+  g.child('players').on('value',s=>{ P.players=s.val()||{}; const me=P.players[P.pid]; if(!me){ return kicked(); } P.score=me.score||0; $('p-score').textContent=P.score+" pts";
+    const sorted=Object.entries(P.players).sort((a,b)=>(b[1].score||0)-(a[1].score||0)); const r=sorted.findIndex(x=>x[0]==P.pid)+1; $('p-rank').textContent="#"+r+" of "+sorted.length; });
+  g.child('wall').orderByChild('pid').equalTo(P.pid).on('value',s=>{ const w=s.val()||{}; Object.entries(w).forEach(([k,v])=>{ const before=(P.myWall[k]||{}).stars||0; if((v.stars||0)>before && P.myWall[k]!==undefined){ SFX.star(); flyPoints(STAR); toast("⭐ Your teacher starred your <b>"+esc(TASKS[v.task].name)+"</b> answer! +"+STAR,true); } }); P.myWall=w; });
+  clearInterval(P.timerInt); P.timerInt=setInterval(tickPlayerTimer,500);
+}
+function kicked(){ show('s-home'); $('join-err').textContent="You left the game (or the teacher ended it)."; $('b-join').disabled=false; }
+
+function onState(old){
+  const s=P.state;
+  const changedRound = !old || old.round!==s.round || old.phase!==s.phase;
+  $('p-round').textContent = s.phase=="round"||s.phase=="closed" ? ROUNDS[s.round].title : s.phase=="final" ? "Final results" : "Waiting room";
+  if(changedRound){
+    if(s.phase=="round"){ SFX.start(); if(P.view=="task" && P.task && P.task.round==s.round){ /* keep working */ } else { P.view="list"; P.task=null; } }
+    else { P.view="list"; P.task=null; }
+    renderPlayer();
+  }
+}
+function tickPlayerTimer(){
+  const s=P.state, el=$('p-timer');
+  if(!s||s.phase!="round"||!s.end){ el.hidden=true; return; }
+  const left=s.end-now(); el.hidden=false; el.textContent="⏱ "+fmtTime(left); el.classList.toggle('low',left<60000);
+}
+
+function renderPlayer(){
+  const v=$('p-view'), s=P.state||{phase:'lobby'};
+  if(s.phase=="lobby"||s.phase==undefined){
+    v.innerHTML=`<div class="wait"><div class="spinner"></div><div class="big">You're in, ${esc(P.name)}! 🎉</div><p>Look at the big screen. The game starts when your teacher opens Round 1.</p>
+    <div class="panel" style="max-width:520px;text-align:left;margin-top:16px"><h3>While you wait — remember:</h3><p class="mini" style="font-size:14px;line-height:1.6">Pseudocode is a plan for your code, written in simple English-like steps.<br>• <b>No</b> semicolons, brackets or data types needed.<br>• Use keywords: <span class="mono">INPUT, OUTPUT, SET, IF … ENDIF, WHILE … ENDWHILE, FOR … ENDFOR</span><br>• Indent the lines inside IF and loops.</p></div></div>`; return;
+  }
+  if(s.phase=="board"){ v.innerHTML=`<div class="wait"><div class="big">📊 Look at the big screen!</div><p>Your teacher is showing the leaderboard. You are <b>${$('p-rank').textContent}</b> with <b>${P.score}</b> points.</p></div>`; return; }
+  if(s.phase=="final"){ const sorted=Object.values(P.players).sort((a,b)=>(b.score||0)-(a.score||0)); const r=sorted.findIndex(x=>x.name==P.name)+1;
+    v.innerHTML=`<div class="wait"><div class="big">🏁 Game over!</div><p style="font-size:20px">You finished <b>#${r}</b> with <b>${P.score}</b> points.</p><p>Well done — now you know where to start: <b>Inputs → Process → Outputs</b>, then turn it into code.</p></div>`; if(r<=3) confetti(4000); return; }
+  if(s.phase=="closed"){ v.innerHTML=`<div class="wait"><div class="big">⏹ Round closed</div><p>Pens down! Wait for your teacher to open the next round.</p><p>You have <b>${P.score}</b> points.</p></div>`; return; }
+  // round open
+  if(P.view=="task"&&P.task) return renderTask();
+  const R=ROUNDS[s.round];
+  const doneCount=R.tasks.filter(t=>P.done[t.id]!==undefined).length;
+  v.innerHTML=`<div class="wrap"><div class="roundhead"><div class="ic">${R.icon}</div><h1>${esc(R.title)}</h1></div>
+    <p class="intro">${esc(R.intro)}<br><b>${doneCount} / ${R.tasks.length} done</b></p>
+    <div class="tasks">${R.tasks.map((t,i)=>{ const d=P.done[t.id]; return `<button class="tcard ${d!==undefined?'done':''}" data-t="${t.id}">
+      <div class="n">Task ${i+1}${t.level?`<span class="lvl ${t.level}">${t.level}</span>`:''}</div><div class="t">${esc(t.name)}</div>
+      <div class="s">${d!==undefined?'✔ '+d+' pts':(R.type=='write'?'Write → Run → Submit':'Not done yet')}</div></button>`; }).join('')}</div></div>`;
+  v.querySelectorAll('.tcard').forEach(b=>b.onclick=()=>{ P.task=TASKS[b.dataset.t]; P.view="task"; renderTask(); window.scrollTo(0,0); });
+}
+function backToList(){ P.view="list"; P.task=null; renderPlayer(); window.scrollTo(0,0); }
+
+/* ---------- scoring ---------- */
+function speedBonus(){ const s=P.state; if(!s||!s.start) return 0; const secs=(now()-s.start)/1000; return Math.max(0, Math.round(50 - secs/10)); }
+async function award(taskId, pts){
+  const prev=P.done[taskId]; const best=Math.max(prev||0, pts); const delta=best-(prev||0);
+  await G(P.code).child('done/'+P.pid+'/'+taskId).set(best);
+  if(delta>0) await G(P.code).child('players/'+P.pid+'/score').transaction(x=>(x||0)+delta);
+  return delta;
+}
+function roundOpen(){ return P.state&&P.state.phase=="round"&&P.task&&P.task.round==P.state.round; }
+
+function renderTask(){
+  const t=P.task, R=ROUNDS[t.round], v=$('p-view');
+  v.innerHTML=`<div class="wrap"><button class="back" id="t-back">← All tasks</button><div id="t-body"></div></div>`;
+  $('t-back').onclick=backToList;
+  ({order:taskOrder, fill:taskFill, bug:taskBug, write:taskWrite})[R.type](t, $('t-body'));
+}
+function nextTaskBtn(t){
+  const R=ROUNDS[t.round]; const nxt=R.tasks.find(x=>P.done[x.id]===undefined&&x.id!=t.id);
+  return nxt? `<button class="btn blue" id="t-next">Next: ${esc(nxt.name)} →</button>` : `<button class="btn green" id="t-next">✔ Round complete — back</button>`;
+}
+function wireNext(t){ const b=$('t-next'); if(!b) return; const R=ROUNDS[t.round]; const nxt=R.tasks.find(x=>P.done[x.id]===undefined&&x.id!=t.id);
+  b.onclick=()=>{ if(nxt){ P.task=nxt; renderTask(); window.scrollTo(0,0);} else backToList(); }; }
+
+/* ---------- Round 1: order ---------- */
+function taskOrder(t, el){
+  const answers=[t.lines]; (t.swaps||[]).forEach(([a,b])=>{ answers.slice().forEach(ans=>{ const c=[...ans]; [c[a],c[b]]=[c[b],c[a]]; answers.push(c); }); });
+  let pool=shuffle(t.lines.map((l,i)=>({l,i}))), placed=[], wrong=0, finished=P.done[t.id]!==undefined;
+  if(finished){ placed=t.lines.map((l,i)=>({l,i})); pool=[]; }
+  const draw=(marks)=>{
+    const ind=indentLines(placed.map(p=>p.l));
+    el.innerHTML=`<div class="panel"><div class="taskq"><span class="tag">Task · ${esc(t.name)}</span>${esc(t.task)}</div></div>
+    <div class="prog" id="o-prog">${placed.length? placed.map((p,k)=>`<button class="pline ${marks?(marks[k]?'ok':'bad'):''}" data-k="${k}"><span class="ln">${k+1}</span><span>${esc(ind[k]).replace(/ /g,'&nbsp;')}</span></button>`).join('') : '<div class="ph">Tap the lines below in the right order…</div>'}</div>
+    <div class="pool">${pool.map((p,k)=>`<button class="chip" data-k="${k}">${esc(p.l)}</button>`).join('')}</div>
+    <div class="actions">${finished? nextTaskBtn(t) : `<button class="btn green" id="o-check" ${pool.length?'disabled':''}>Check ✔</button><button class="btn ghost small" id="o-reset" style="color:#fff;border-color:#ffffff44">Reset</button>`}</div>
+    <div class="fb" id="o-fb">${finished?'<span class="ok">✔ Done! '+P.done[t.id]+' points.</span>':''}</div>`;
+    if(finished){ wireNext(t); return; }
+    el.querySelectorAll('.chip').forEach(b=>b.onclick=()=>{ SFX.pop(); placed.push(pool.splice(+b.dataset.k,1)[0]); draw(); });
+    el.querySelectorAll('.pline').forEach(b=>b.onclick=()=>{ pool.push(placed.splice(+b.dataset.k,1)[0]); draw(); });
+    $('o-reset').onclick=()=>{ pool=shuffle(t.lines.map((l,i)=>({l,i}))); placed=[]; draw(); };
+    $('o-check').onclick=async()=>{
+      if(!roundOpen()) return toast("This round is closed.");
+      const got=placed.map(p=>p.l);
+      if(answers.some(a=>a.every((l,i)=>l==got[i]))){
+        const pts=Math.max(40,100-20*wrong)+speedBonus(); finished=true; SFX.ok(); flyPoints(pts); await award(t.id,pts); draw(got.map(()=>true));
+        $('o-fb').innerHTML=`<span class="ok">✔ Correct! +${pts} points${wrong?'':' (first try!)'}</span>`;
+      } else {
+        wrong++; SFX.bad(); const marks=got.map((l,i)=>answers.some(a=>a[i]==l)); draw(marks);
+        $('o-fb').innerHTML=`<span class="bad">✘ Not yet — ${marks.filter(Boolean).length} of ${got.length} lines are in the right place (green). Tap a red line to take it out and fix it.</span>`;
+      }
+    };
+  };
+  draw(finished?t.lines.map(()=>true):null);
+}
+
+/* ---------- Round 2: fill ---------- */
+function taskFill(t, el){
+  const blanks=[]; let finished=P.done[t.id]!==undefined, wrong=0;
+  const html=esc(t.pseudo).replace(/\[\[(.+?)\]\]/g,(m,inner)=>{ const opts=inner.split('|').map(x=>x.replace(/&quot;/g,'"').replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&amp;/g,'&')); const k=blanks.length; blanks.push(opts[0]);
+    return `<select data-k="${k}" ${finished?'disabled':''}><option value="">?</option>${shuffle(opts).map(o=>`<option ${finished&&o==opts[0]?'selected':''}>${esc(o)}</option>`).join('')}</select>`; });
+  el.innerHTML=`<div class="panel"><div class="taskq"><span class="tag">Task · ${esc(t.name)}</span>Both programs must do the same job. Choose the missing words.</div></div>
+    <div class="two"><div class="codebox java"><span class="lbl">☕ Java (strict syntax)</span>${esc(t.java)}</div>
+    <div class="codebox"><span class="lbl">📝 Pseudocode (free &amp; simple)</span>${html}</div></div>
+    <div class="actions" style="margin-top:14px">${finished?nextTaskBtn(t):'<button class="btn green" id="f-check">Check ✔</button>'}</div>
+    <div class="fb" id="f-fb">${finished?'<span class="ok">✔ Done! '+P.done[t.id]+' points.</span>':''}</div>`;
+  if(finished) return wireNext(t);
+  $('f-check').onclick=async()=>{
+    if(!roundOpen()) return toast("This round is closed.");
+    const sels=[...el.querySelectorAll('select')]; let ok=0;
+    sels.forEach(s=>{ const good=s.value==blanks[+s.dataset.k]; s.classList.toggle('ok',good); s.classList.toggle('bad',!good); if(good) ok++; });
+    if(ok==blanks.length){ const pts=Math.max(40,100-20*wrong)+speedBonus(); SFX.ok(); flyPoints(pts); await award(t.id,pts); sels.forEach(s=>s.disabled=true);
+      $('f-fb').innerHTML=`<span class="ok">✔ Perfect! +${pts} points. See how Java needs ( ) { } ; and types, but pseudocode does not?</span>`;
+      el.querySelector('.actions').innerHTML=nextTaskBtn(t); wireNext(t);
+    } else { wrong++; SFX.bad(); $('f-fb').innerHTML=`<span class="bad">✘ ${ok} of ${blanks.length} correct. Fix the red ones and check again.</span>`; }
+  };
+}
+
+/* ---------- Round 3: bug ---------- */
+function taskBug(t, el){
+  let finished=P.done[t.id]!==undefined, wrong=0;
+  el.innerHTML=`<div class="panel"><div class="taskq"><span class="tag">Task · ${esc(t.name)}</span>${esc(t.task)}</div><p class="mini" style="margin-top:6px">Tap the ONE line that has the bug.</p></div>
+    <div class="prog">${t.lines.map((l,k)=>`<button class="bugl ${finished&&k==t.bug?'ok':''}" data-k="${k}" ${finished?'disabled':''}><span class="ln">${k+1}</span>${esc(l)}</button>`).join('')}</div>
+    <div class="fb" id="b-fb"></div><div id="b-why">${finished?`<div class="why">🐞 ${esc(t.why)}</div>`:''}</div>
+    <div class="actions" style="margin-top:12px">${finished?nextTaskBtn(t):''}</div>`;
+  if(finished) return wireNext(t);
+  el.querySelectorAll('.bugl').forEach(b=>b.onclick=async()=>{
+    if(!roundOpen()) return toast("This round is closed.");
+    const k=+b.dataset.k;
+    if(k==t.bug){ const pts=Math.max(25,100-25*wrong)+speedBonus(); SFX.ok(); flyPoints(pts); b.classList.add('ok'); el.querySelectorAll('.bugl').forEach(x=>x.disabled=true);
+      await award(t.id,pts); $('b-fb').innerHTML=`<span class="ok">✔ Bug found! +${pts} points</span>`; $('b-why').innerHTML=`<div class="why">🐞 ${esc(t.why)}</div>`;
+      el.querySelector('.actions').innerHTML=nextTaskBtn(t); wireNext(t);
+    } else { wrong++; SFX.bad(); b.classList.remove('bad'); void b.offsetWidth; b.classList.add('bad'); $('b-fb').innerHTML=`<span class="bad">✘ That line is fine. Trace the code again with a real value.</span>`; }
+  });
+}
+
+/* ---------- Round 4: write ---------- */
+const KEYWORDS=[ // ¦ marks where the cursor goes
+  ["INPUT","INPUT ¦"],["OUTPUT","OUTPUT ¦"],["SET ←","SET ¦ ← "],["←"," ← ¦"],
+  ["IF…ENDIF","IF ¦ THEN\n   \nENDIF"],["IF…ELSE","IF ¦ THEN\n   \nELSE\n   \nENDIF"],["ELSE IF","ELSE IF ¦ THEN\n   "],
+  ["WHILE","WHILE ¦\n   \nENDWHILE"],["FOR","FOR i ← 1 TO ¦\n   \nENDFOR"],["REPEAT","REPEAT\n   ¦\nUNTIL "],
+  ["AND"," AND ¦"],["OR"," OR ¦"],["MOD"," MOD ¦"],["\"text\"","\"¦\""]
+];
+const CHEAT=`<details class="cheat"><summary>📘 Pseudocode cheat sheet</summary>
+ <div class="cheat msg">Pseudocode is <b>free</b>: no semicolons, no brackets, no data types, and small spelling differences are OK. But write it <b>close to code</b> — one action per line — so it is easy to turn into Java later. Write keywords in CAPITALS and indent the inside of IF and loops.</div>
+ <table><tr><th>Write</th><th>Meaning</th></tr>
+ <tr><td>INPUT age</td><td>Get a value from the user (READ, GET also work)</td></tr>
+ <tr><td>OUTPUT "Total:", total</td><td>Show something (PRINT, DISPLAY also work)</td></tr>
+ <tr><td>SET total ← 0</td><td>Store a value (total = 0 also works)</td></tr>
+ <tr><td>total ← total + num</td><td>Update a value</td></tr>
+ <tr><td>IF mark &gt;= 40 THEN<br>&nbsp;&nbsp;…<br>ELSE IF … THEN<br>ELSE<br>ENDIF</td><td>Make a decision</td></tr>
+ <tr><td>WHILE count &lt; 5<br>&nbsp;&nbsp;…<br>ENDWHILE</td><td>Repeat while true</td></tr>
+ <tr><td>FOR i ← 1 TO 10<br>&nbsp;&nbsp;…<br>ENDFOR</td><td>Repeat a fixed number of times (NEXT i also works)</td></tr>
+ <tr><td>REPEAT … UNTIL x = 0</td><td>Repeat until true</td></tr>
+ <tr><td>= &lt;&gt; &lt; &gt; &lt;= &gt;=</td><td>Compare (equal, not equal …)</td></tr>
+ <tr><td>AND OR NOT MOD</td><td>Logic, and remainder (7 MOD 2 = 1)</td></tr>
+ <tr><td>BREAK / STOP</td><td>Leave a loop / end the program</td></tr></table></details>`;
+
+function analyse(code, t){
+  const lines=code.split('\n'), U=code.toUpperCase();
+  const has=re=>lines.some(l=>re.test(l.trim()));
+  const needs=t.needs||{};
+  const perr=PR.check(code);
+  // indentation: lines inside blocks indented more than the opener
+  let indentOK=true, depthStack=[], blocks=0;
+  lines.forEach(l=>{ if(!l.trim()) return; const ind=l.match(/^\s*/)[0].replace(/\t/g,'   ').length, u=l.trim().toUpperCase();
+    if(/^(ENDIF|END IF|ENDWHILE|END WHILE|ENDFOR|END FOR|NEXT|UNTIL)\b/.test(u)){ depthStack.pop(); return; }
+    if(/^(ELSE)/.test(u)) return;
+    if(depthStack.length && ind<=depthStack[depthStack.length-1]) indentOK=false;
+    if(/^(IF\b(?!.*THEN\s+\S)|WHILE\b|FOR\b|REPEAT\b)/.test(u)){ depthStack.push(ind); blocks++; } });
+  return [
+    {ok:has(/^(INPUT|READ|GET|ENTER|ACCEPT)\b/i), must:true, txt:"Gets the inputs (INPUT)"},
+    {ok:lines.some(l=>/←|<-|:=|^\s*SET\b|^\s*[A-Za-z_]\w*\s*=[^=]|^\s*(ADD|INCREMENT|DECREMENT)\b/i.test(l)), must:false, txt:"Stores or works out values (SET / ←)"},
+    {ok:has(/^(OUTPUT|PRINT|DISPLAY|WRITE|SHOW)\b/i), must:true, txt:"Shows the result (OUTPUT)"},
+    ...(needs.decision?[{ok:has(/^IF\b/i), must:true, txt:"Makes a decision (IF … THEN)"}]:[]),
+    ...(needs.loop?[{ok:has(/^(WHILE|FOR|REPEAT)\b/i), must:true, txt:"Repeats with a loop (WHILE / FOR / REPEAT)"}]:[]),
+    {ok:!perr && code.trim().length>0, must:true, txt: perr? `Every line is readable — <b>line ${perr.line}</b>: ${esc(perr.msg)}` : "Every line is readable and every block is closed"},
+    {ok:blocks==0? code.trim().length>0 : indentOK, must:false, txt:"Lines inside IF / loops are indented"},
+    {ok:!/\.\.\.|…|\?\?/.test(code) && code.trim().length>0, must:false, txt:"No … placeholders left"}
+  ];
+}
+
+function taskWrite(t, el){
+  const draftKey='pq-draft-'+P.code+'-'+t.id;
+  const planKey='pq-plan-'+P.code+'-'+t.id;
+  const plan=store.get(planKey,{inp:"",out:"",calc:false,dec:false,loop:false,used:false});
+  let lastTests=null;
+  el.innerHTML=`
+  <div class="panel"><div class="taskq"><span class="tag">Problem · ${esc(t.name)} <span class="lvl ${t.level}">${t.level}</span></span>${esc(t.task)}</div>
+    <div class="actions" style="margin-top:12px"><button class="btn amber small" id="w-plan">🧭 Where do I start?</button><span class="mini">Best score so far: <b id="w-best">${P.done[t.id]!==undefined?P.done[t.id]+' pts':'—'}</b> · max ${220} pts</span></div></div>
+  <div id="w-planner" hidden></div>
+  <div class="wgrid">
+    <div>
+      <div class="panel" style="padding:14px">
+        <div class="toolbar">${KEYWORDS.map((k,i)=>`<button class="kw" data-i="${i}">${esc(k[0])}</button>`).join('')}</div>
+        <div class="editor"><div class="gutter" id="w-gut"></div><textarea id="w-code" spellcheck="false" autocapitalize="off" autocomplete="off" placeholder="START&#10;INPUT ...&#10;...&#10;OUTPUT ...&#10;END"></textarea></div>
+        <div class="actions" style="margin-top:10px">
+          <button class="btn blue" id="w-run">▶ Run tests</button>
+          <button class="btn green" id="w-sub">📤 Submit to wall</button>
+          <button class="btn ghost small" id="w-java">☕ See it in Java</button>
+        </div>
+        <div class="myin"><input id="w-myin" placeholder="Try your own inputs, e.g. 5, 3"><button class="btn small dark" id="w-try">Try</button></div>
+        <div class="console" id="w-con"><span class="m">Output will appear here when you run your pseudocode.</span></div>
+        <div id="w-javabox" hidden></div>
+      </div>
+    </div>
+    <div>
+      <div class="panel"><h3>✅ Live checklist</h3><ul class="check" id="w-check"></ul></div>
+      <div class="panel"><h3>🧪 Tests</h3><p class="mini">Your pseudocode is run with these inputs. Pass them all for full points.</p><div class="tests" id="w-tests">${t.tests.map((x,i)=>`<div class="trow"><b>Test ${i+1}</b><span class="d">inputs: ${x.in.join(', ')}</span></div>`).join('')}</div><div class="score-preview" id="w-prev"></div></div>
+      <div class="panel">${CHEAT}</div>
+    </div>
+  </div>`;
+  const ta=$('w-code'), gut=$('w-gut');
+  ta.value=store.get(draftKey,"");
+  let errLine=0;
+  const refresh=()=>{
+    const n=Math.max(ta.value.split('\n').length,14); gut.innerHTML=Array.from({length:n},(_,i)=>`<div class="${i+1==errLine?'err':''}">${i+1}</div>`).join(''); gut.scrollTop=ta.scrollTop;
+    const items=analyse(ta.value,t); $('w-check').innerHTML=items.map(x=>`<li class="${x.ok?'y':'n'} ${x.must?'must':''}"><span class="i">${x.ok?'✔':'•'}</span><span>${x.txt}</span></li>`).join('');
+    store.set(draftKey,ta.value);
+  };
+  ta.addEventListener('input',()=>{ errLine=0; refresh(); });
+  ta.addEventListener('scroll',()=>gut.scrollTop=ta.scrollTop);
+  ta.addEventListener('keydown',e=>{
+    if(e.key=='Tab'){ e.preventDefault(); insert("   ", true); }
+    if(e.key=='Enter'){ // keep indentation, add one level after IF/WHILE/FOR/ELSE/REPEAT
+      const s=ta.selectionStart, before=ta.value.slice(0,s), line=before.split('\n').pop(); let ind=line.match(/^\s*/)[0];
+      if(/^\s*(IF\b.*THEN\s*$|ELSE\b|WHILE\b|FOR\b|REPEAT\b)/i.test(line)) ind+="   ";
+      e.preventDefault(); insert("\n"+ind, true);
+    }
+  });
+  function insert(txt, raw){ ta.focus(); const s=ta.selectionStart,e=ta.selectionEnd;
+    if(!raw){ const ind=ta.value.slice(0,s).split('\n').pop().match(/^\s*/)[0]; txt=txt.replace(/\n/g,"\n"+ind); }
+    let cur=txt.indexOf('¦'); txt=txt.replace('¦',''); if(cur<0) cur=txt.length;
+    ta.setRangeText(txt,s,e,'end'); ta.selectionStart=ta.selectionEnd=s+cur; ta.dispatchEvent(new Event('input')); }
+  el.querySelectorAll('.kw').forEach(b=>b.onclick=()=>insert(KEYWORDS[+b.dataset.i][1]));
+
+  // run
+  const showRun=(res, inputs, title)=>{
+    const con=$('w-con'); let h=`<span class="m">${esc(title)} — inputs: ${inputs.length?esc(inputs.join(', ')):'(none)'}</span>\n`;
+    h+= res.out.length? res.out.map(esc).join('\n') : '<span class="m">(nothing was shown — did you forget OUTPUT?)</span>';
+    if(!res.ok){ h+=`\n<span class="e">⚠ Line ${res.error.line}: ${esc(res.error.msg)}</span>`; errLine=res.error.line; } else if(res.left) h+=`\n<span class="m">Note: ${res.left} input value(s) were not used.</span>`;
+    con.innerHTML=h; refresh();
+  };
+  const runAll=()=>{
+    const code=ta.value; const R=PR.runTests(code,t.tests); lastTests=R;
+    $('w-tests').innerHTML=R.map((x,i)=>`<div class="trow ${x.pass?'p':'f'}"><b>${x.pass?'✔':'✘'} Test ${i+1}</b><span class="d">inputs: ${x.test.in.join(', ')}<br>output: ${esc(x.res.out.join(' | ')||'(nothing)')}${x.pass?'':'<br><b style="color:#b42318">'+esc(x.why)+'</b>'}</span></div>`).join('');
+    const first=R.find(x=>!x.pass)||R[0]; showRun(first.res, first.test.in, first.pass?'Test 1 passed':'First failing test');
+    const passed=R.filter(x=>x.pass).length; $('w-prev').innerHTML=`${passed} / ${R.length} tests passed → worth <b>${scoreFor(passed,R.length)}</b> pts when you submit`;
+    if(passed==R.length){ SFX.ok(); toast("🎉 All tests pass! Now press <b>Submit to wall</b>."); } else SFX.bad();
+    return R;
+  };
+  const scoreFor=(p,n)=>10+Math.round(190*p/n)+(plan.used?20:0);
+  $('w-run').onclick=runAll;
+  $('w-try').onclick=()=>{ const ins=$('w-myin').value.split(',').map(x=>x.trim()).filter(x=>x!==""); showRun(PR.run(ta.value,ins),ins,'Your own test'); };
+  $('w-myin').addEventListener('keydown',e=>{ if(e.key=='Enter') $('w-try').click(); });
+  $('w-java').onclick=()=>{
+    const box=$('w-javabox'); if(!box.hidden){ box.hidden=true; return; }
+    const j=PR.toJava(ta.value); box.hidden=false;
+    box.innerHTML= j? `<div class="javaout">${esc(j)}</div><p class="javanote">☕ This is a <b>rough</b> Java version made from YOUR pseudocode. Look at what Java adds: <b>data types</b> (int, double), <b>;</b> at the end of lines, <b>( )</b> around conditions and <b>{ }</b> around blocks. Your plan stays the same — only the syntax changes. That is why we plan in pseudocode first!</p>`
+      : `<p class="javanote" style="color:#b42318">Fix the errors first (see the checklist), then try again.</p>`;
+  };
+  $('w-sub').onclick=async()=>{
+    if(!roundOpen()) return toast("This round is closed.");
+    const code=ta.value.trim(); if(code.split('\n').length<3) return toast("Write a bit more first (at least 3 lines).");
+    const R=runAll(); const passed=R.filter(x=>x.pass).length; const pts=scoreFor(passed,R.length);
+    $('w-sub').disabled=true;
+    try{
+      const key=P.pid+'_'+t.id; const prev=(await G(P.code).child('wall/'+key).once('value')).val();
+      await G(P.code).child('wall/'+key).set({pid:P.pid,name:P.name,task:t.id,code,pass:passed,total:R.length,t:TS(),stars:prev&&prev.stars||0});
+      const delta=await award(t.id,pts);
+      if(delta>0){ flyPoints(delta); SFX.ok(); } else SFX.pop();
+      $('w-best').textContent=P.done[t.id]!==undefined?Math.max(P.done[t.id],pts)+' pts':pts+' pts';
+      toast(delta>0? `📤 Submitted to the class wall! +${delta} points` : `📤 Updated on the wall. Your best score stays ${Math.max(P.done[t.id]||0,pts)} pts.`);
+    }catch(e){ toast("Could not submit: "+esc(e.message)); }
+    $('w-sub').disabled=false;
+  };
+
+  // planner
+  $('w-plan').onclick=()=>{
+    const box=$('w-planner'); if(!box.hidden){ box.hidden=true; return; }
+    box.hidden=false;
+    box.innerHTML=`<div class="planner"><h3>🧭 Where do I start? Plan it in 4 steps</h3><p class="mini">Every program is: <b>Inputs → Process → Outputs</b>. Answer these, and I will build a starter skeleton for you (+20 pts bonus).</p>
+      <div class="pstep"><div class="num">1</div><div class="body"><div class="q">What do I need to GET from the user? (inputs)</div><div class="h">Write variable names, separated by commas. Use one word per name, e.g. price, quantity</div>
+        <input type="text" id="pl-in" value="${esc(plan.inp)}"><button class="peek" data-p="in">Show me a hint</button></div></div>
+      <div class="pstep"><div class="num">2</div><div class="body"><div class="q">What must I SHOW at the end? (outputs)</div><div class="h">The result(s) the user wants to see, e.g. total, average</div>
+        <input type="text" id="pl-out" value="${esc(plan.out)}"><button class="peek" data-p="out">Show me a hint</button></div></div>
+      <div class="pstep"><div class="num">3</div><div class="body"><div class="q">What must happen in the middle? (process) — tick all that apply</div>
+        <label class="cb"><input type="checkbox" id="pl-calc" ${plan.calc?'checked':''}> I must <b>calculate</b> something (+ − × ÷)</label>
+        <label class="cb"><input type="checkbox" id="pl-dec" ${plan.dec?'checked':''}> I must <b>decide</b> something → IF</label>
+        <label class="cb"><input type="checkbox" id="pl-loop" ${plan.loop?'checked':''}> I must <b>repeat</b> something → loop (WHILE / FOR)</label>
+        <button class="peek" data-p="mid">Show me a hint</button></div></div>
+      <div class="pstep"><div class="num">4</div><div class="body"><div class="q">Build my skeleton, then fill in the gaps (…)</div>
+        <button class="btn blue small" id="pl-build" style="margin-top:6px">🏗 Build my starter skeleton</button></div></div></div>`;
+    box.querySelectorAll('.peek').forEach(b=>b.onclick=()=>{ const h=t.hint; const m={in:"Inputs: "+h.inputs, out:"Outputs: "+h.outputs, mid:[h.calc&&"calculate",h.decision&&"decide (IF)",h.loop&&"repeat (loop)"].filter(Boolean).join(" + ")}; toast("💡 "+esc(m[b.dataset.p])); });
+    const save=()=>{ plan.inp=$('pl-in').value; plan.out=$('pl-out').value; plan.calc=$('pl-calc').checked; plan.dec=$('pl-dec').checked; plan.loop=$('pl-loop').checked; store.set(planKey,plan); };
+    box.querySelectorAll('input').forEach(i=>i.addEventListener('input',save));
+    $('pl-build').onclick=()=>{
+      save(); const ids=s=>s.split(/,|\band\b/i).map(x=>x.replace(/\(.*?\)/g,'').trim().split(/\s+/).filter(Boolean).pop()).filter(Boolean).map(x=>x.replace(/[^A-Za-z0-9_]/g,'')).filter(x=>/^[A-Za-z_]/.test(x));
+      const ins=ids(plan.inp), outs=ids(plan.out);
+      if(!ins.length||!outs.length) return toast("Fill in step 1 and step 2 first.");
+      if(ta.value.trim() && !confirm("Replace what you have written with the skeleton?")) return;
+      let L=["START","// 1) INPUT — get the data"]; ins.forEach(v=>L.push("INPUT "+v)); L.push("","// 2) PROCESS — work it out");
+      let ind="";
+      if(plan.loop){ L.push("WHILE …"); ind="   "; }
+      if(plan.calc) outs.forEach(v=>L.push(ind+"SET "+v+" ← …"));
+      if(plan.dec) L.push(ind+"IF … THEN",ind+"   …",ind+"ELSE",ind+"   …",ind+"ENDIF");
+      if(plan.loop) L.push(ind+"…","ENDWHILE");
+      L.push("","// 3) OUTPUT — show the result"); outs.forEach(v=>L.push("OUTPUT "+v)); L.push("END");
+      ta.value=L.join("\n"); ta.dispatchEvent(new Event('input'));
+      if(!plan.used){ plan.used=true; store.set(planKey,plan); }
+      toast("🏗 Skeleton ready! Replace every … with real pseudocode. (+20 bonus added to your submit score)"); box.hidden=true; ta.focus();
+    };
+  };
+  refresh();
+}
+
+/* ==================================================================
+   HOST
+   ================================================================== */
+const H = { code:null, state:null, players:{}, done:{}, wall:{}, view:"lobby", wallFilter:"all", timerInt:null, spot:null };
+
+$('b-teacher').onclick = async()=>{
+  if(!db) return;
+  const saved=store.get('pq-host',null);
+  if(saved && (await G(saved).child('state').once('value')).exists() && confirm("Resume your room "+saved+"?\n(Cancel = start a new room)")) return startHost(saved);
+  let code;
+  for(let i=0;i<20;i++){ code=String(1000+Math.floor(Math.random()*9000)); if(!(await G(code).child('state').once('value')).exists()) break; }
+  await G(code).set({state:{phase:'lobby',round:-1,created:TS()}});
+  store.set('pq-host',code); startHost(code);
+};
+$('h-end').onclick=async()=>{ if(!confirm("End this game and start a new room? (Scores will be cleared.)")) return; await G(H.code).remove(); store.set('pq-host',null); location.href=location.pathname+'?host=1'; };
+
+function startHost(code){
+  H.code=code; show('s-host'); $('h-room').textContent="Room "+code; document.title="Host · Room "+code;
+  const g=G(code);
+  g.child('state').on('value',s=>{ H.state=s.val()||{}; renderSide(); if(H.view=="board"||H.view=="lobby") renderMain(); });
+  g.child('players').on('value',s=>{ const old=Object.keys(H.players).length; H.players=s.val()||{}; const n=Object.keys(H.players).length; $('h-count').textContent=n+" player"+(n==1?"":"s"); if(n>old&&H.view=="lobby") SFX.pop(); if(H.view!="wall") renderMain(); });
+  g.child('done').on('value',s=>{ H.done=s.val()||{}; if(H.view=="board") renderMain(); });
+  g.child('wall').on('value',s=>{ const n=Object.keys(s.val()||{}).length, o=Object.keys(H.wall).length; H.wall=s.val()||{}; if(H.view=="wall"){ renderMain(); if(n>o) SFX.pop(); } updateWallTab(); });
+  document.querySelectorAll('.tab').forEach(b=>b.onclick=()=>setView(b.dataset.v));
+  $('h-plus').onclick=()=>{ if(H.state.phase=="round") G(H.code).child('state/end').set((H.state.end||now())+120000); };
+  $('h-close').onclick=()=>{ if(H.state.phase=="round") G(H.code).child('state').update({phase:'closed'}); };
+  clearInterval(H.timerInt); H.timerInt=setInterval(()=>{ const s=H.state, el=$('h-timer'); if(s&&s.phase=="round"&&s.end){ const left=s.end-now(); el.textContent=fmtTime(left); el.classList.toggle('low',left<60000); } else { el.textContent="--:--"; el.classList.remove('low'); } },500);
+  setView("lobby", true);
+}
+function updateWallTab(){ const n=Object.keys(H.wall).length; document.querySelector('.tab[data-v="wall"]').textContent="Live wall"+(n?` (${n})`:""); }
+function setView(v, auto){ H.view=v; document.querySelectorAll('.tab').forEach(b=>b.classList.toggle('on',b.dataset.v==v));
+  if(auto){}
+  else if(v=="final"){ G(H.code).child('state').update({phase:'final'}); }
+  else if(v=="board" && H.state.phase!="round") G(H.code).child('state').update({phase:'board'});
+  renderMain(); }
+
+function renderSide(){
+  const s=H.state||{};
+  $('h-rounds').innerHTML=ROUNDS.map((r,i)=>{ const cur=s.round==i&&(s.phase=="round"||s.phase=="closed");
+    return `<button class="rbtn ${cur?'cur':''}" data-r="${i}" style="margin-bottom:8px"><span class="ic">${r.icon}</span><span>${esc(r.title.replace(/^Round \d · /,''))}<small>Round ${i+1} · ${r.tasks.length} tasks · ${r.minutes} min ${cur?(s.phase=="round"?'· <b style="color:#59d38c">OPEN</b>':'· closed'):''}</small></span></button>`; }).join('');
+  $('h-rounds').querySelectorAll('.rbtn').forEach(b=>b.onclick=()=>openRound(+b.dataset.r));
+}
+async function openRound(i){
+  const s=H.state; if(s.phase=="round"&&s.round==i){ return; }
+  if(s.phase=="round" && !confirm("Round "+(s.round+1)+" is still open. Close it and open Round "+(i+1)+"?")) return;
+  const ns={phase:'round',round:i,start:TS(),end:now()+ROUNDS[i].minutes*60000};
+  H.state=Object.assign({},ns,{start:now()}); await G(H.code).child('state').set(ns);
+  SFX.start(); setView(ROUNDS[i].type=="write"?"wall":"board", true);
+}
+
+function renderMain(){
+  const m=$('h-main'), pl=Object.entries(H.players);
+  if(H.view=="lobby"){
+    const url=gameUrl(H.code);
+    m.innerHTML=`<div class="lobby"><div class="joinbox"><p>Scan or go to the link, then type</p><div class="code">${H.code}</div><div id="qr"></div><div class="url">${esc(url)}</div></div>
+      <div><h2>Players (${pl.length})</h2><p class="sub">${pl.length?'Great — when everyone is in, open Round 1 on the left.':'Waiting for students to join…'}</p>
+      <div class="names">${pl.map(([k,p])=>`<span class="nm">${esc(p.name)}</span>`).join('')}</div>
+      <div class="panel" style="margin-top:24px;max-width:640px"><h3>🗺 Plan for today (≈ 75–90 min)</h3><p class="mini" style="font-size:14px;line-height:1.7">${ROUNDS.map((r,i)=>`${r.icon} <b>${esc(r.title)}</b> — ${r.minutes} min`).join('<br>')}<br>⭐ Live wall discussion — 10 min<br>🏆 Podium — 5 min</p></div></div></div>`;
+    if(window.QRCode){ new QRCode($('qr'),{text:url,width:250,height:250,correctLevel:QRCode.CorrectLevel.M}); }
+    return;
+  }
+  if(H.view=="board"){
+    const s=H.state, sorted=pl.sort((a,b)=>(b[1].score||0)-(a[1].score||0)), max=Math.max(1,...sorted.map(x=>x[1].score||0)), top=sorted.slice(0,10);
+    let stats="";
+    if(s.round>=0){ const R=ROUNDS[s.round]; stats=`<div class="prog-stats">${R.tasks.map(t=>{ const n=Object.values(H.done).filter(d=>d&&d[t.id]!==undefined).length; return `<div class="stat"><b>${n}/${pl.length}</b>${esc(t.name)}</div>`; }).join('')}</div>`; }
+    let rows=m.querySelector('.board');
+    if(!rows){ m.innerHTML=`<h2>📊 Leaderboard</h2><p class="sub" id="bsub"></p><div id="bstats"></div><div class="board" style="height:${top.length*58}px"></div>`; rows=m.querySelector('.board'); }
+    $('bsub').textContent= s.phase=="round"? `${ROUNDS[s.round].title} is open — scores update live.` : `Top ${top.length} of ${pl.length} players`;
+    $('bstats').innerHTML=stats; rows.style.height=(top.length*58)+"px";
+    const keep=new Set(top.map(x=>x[0]));
+    rows.querySelectorAll('.brow').forEach(r=>{ if(!keep.has(r.dataset.k)) r.remove(); });
+    top.forEach(([k,p],i)=>{ let r=rows.querySelector(`[data-k="${k}"]`);
+      if(!r){ r=document.createElement('div'); r.className='brow'; r.dataset.k=k; r.innerHTML=`<div class="rk"></div><div class="barw"><div class="fill" style="width:0"></div><div class="lab"></div></div><div class="pts"></div>`; r.style.top=(top.length*58)+"px"; rows.appendChild(r); }
+      requestAnimationFrame(()=>{ r.style.top=(i*58)+"px"; r.querySelector('.fill').style.width=Math.max(4,100*(p.score||0)/max)+"%"; });
+      r.classList.toggle('gold',i==0); r.querySelector('.rk').textContent=i+1; r.querySelector('.lab').textContent=p.name; r.querySelector('.pts').textContent=p.score||0; });
+    if(!top.length) rows.innerHTML='<div class="empty">No players yet.</div>';
+    return;
+  }
+  if(H.view=="wall"){
+    const items=Object.entries(H.wall).filter(([k,w])=>H.wallFilter=="all"||w.task==H.wallFilter).sort((a,b)=>(b[1].t||0)-(a[1].t||0));
+    const wtasks=ROUNDS.find(r=>r.type=="write").tasks;
+    m.innerHTML=`<h2>🧱 Live wall</h2><p class="sub">Every Round 4 submission appears here. ⭐ = +${STAR} points for that student. 🔍 = show it big and discuss.</p>
+      <div class="wallf"><button class="wf ${H.wallFilter=='all'?'on':''}" data-f="all">All (${Object.keys(H.wall).length})</button>${wtasks.map(t=>{ const n=Object.values(H.wall).filter(w=>w.task==t.id).length; return `<button class="wf ${H.wallFilter==t.id?'on':''}" data-f="${t.id}">${esc(t.name)} (${n})</button>`; }).join('')}</div>
+      ${items.length?`<div class="wall">${items.map(([k,w])=>{ const cls=w.pass==w.total?'all':w.pass>0?'some':'none';
+        return `<div class="wc ${w.stars?'starred':''}"><div class="h"><b>${esc(w.name)}</b><span class="badge ${cls}">${w.pass}/${w.total} tests</span></div>
+        <div class="mini">${esc(TASKS[w.task].name)}</div><pre>${esc(w.code)}</pre>
+        <div class="acts"><button class="btn small ${w.stars?'amber':'dark'} star" data-k="${k}">${w.stars?'⭐ Starred':'☆ Star +'+STAR}</button><button class="btn small blue" data-s="${k}">🔍 Spotlight</button></div></div>`; }).join('')}</div>`
+      :'<div class="empty">No submissions yet. They appear here live when students press “Submit to wall”.</div>'}`;
+    m.querySelectorAll('.wf').forEach(b=>b.onclick=()=>{ H.wallFilter=b.dataset.f; renderMain(); });
+    m.querySelectorAll('[data-k].star').forEach(b=>b.onclick=()=>toggleStar(b.dataset.k));
+    m.querySelectorAll('[data-s]').forEach(b=>b.onclick=()=>spotlight(b.dataset.s, items.map(x=>x[0])));
+    return;
+  }
+  if(H.view=="final"){
+    const sorted=pl.sort((a,b)=>(b[1].score||0)-(a[1].score||0)); const p=i=>sorted[i]?sorted[i][1]:null;
+    const pod=(i,cls,delay)=>p(i)?`<div class="pod ${cls}"><div class="nm2" style="animation-delay:${delay}s">${esc(p(i).name)}</div><div class="sc" style="animation-delay:${delay}s">${p(i).score||0} pts</div><div class="blk" style="animation-delay:${delay-.6}s">${i+1}</div></div>`:'';
+    m.innerHTML=`<h2 style="text-align:center">🏆 Pseudocode Champions</h2><div class="podium">${pod(1,'p2',1.6)}${pod(0,'p1',2.6)}${pod(2,'p3',.8)}</div>
+      <p class="sub" style="text-align:center;margin-top:20px">${sorted.slice(3,10).map(([k,x],i)=>`${i+4}. ${esc(x.name)} (${x.score||0})`).join(' · ')}</p>`;
+    setTimeout(()=>{ confetti(6000); SFX.start(); },2600);
+  }
+}
+async function toggleStar(k){
+  const w=H.wall[k]; if(!w) return; const on=!w.stars;
+  await G(H.code).child('wall/'+k+'/stars').set(on?1:0);
+  await G(H.code).child('players/'+w.pid+'/score').transaction(x=>Math.max(0,(x||0)+(on?STAR:-STAR)));
+  if(on){ SFX.star(); }
+}
+function spotlight(k, order){
+  const draw=()=>{ const w=H.wall[k]; if(!w) return close(); const t=TASKS[w.task]; const R=PR.runTests(w.code,t.tests); const j=PR.toJava(w.code);
+    $('modal-root').innerHTML=`<div class="modal" id="mod"><div class="mbox"><div class="mh"><h2>${esc(w.name)} — ${esc(t.name)}</h2>
+      <button class="btn small ${w.stars?'amber':'dark'}" id="sp-star">${w.stars?'⭐ Starred':'☆ Star +'+STAR}</button><button class="btn small ghost" id="sp-java">☕ Java</button>
+      <button class="btn small ghost" id="sp-prev">◀</button><button class="btn small ghost" id="sp-next">▶</button><button class="btn small dark" id="sp-x">✕ Close</button></div>
+      <p class="mini" style="margin-bottom:10px">${esc(t.task)}</p>
+      <div class="spot"><pre>${esc(w.code)}</pre><div><div class="tests">${R.map((x,i)=>`<div class="trow ${x.pass?'p':'f'}"><b>${x.pass?'✔':'✘'} Test ${i+1}</b><span class="d">inputs: ${x.test.in.join(', ')}<br>output: ${esc(x.res.out.join(' | ')||'(nothing)')}${x.pass?'':'<br><b style="color:#b42318">'+esc(x.why)+'</b>'}</span></div>`).join('')}</div>
+      <div id="sp-j" hidden>${j?`<div class="javaout">${esc(j)}</div>`:'<p class="javanote">Cannot convert — the pseudocode has an error.</p>'}</div>
+      <div class="panel" style="background:var(--paper);margin-top:10px"><h3>💬 Ask the class</h3><p class="mini" style="font-size:14px;line-height:1.6">• What are the inputs, process and outputs here?<br>• Trace it with your own value — what is shown?<br>• Can it be shorter or clearer?<br>• Which line would be hardest to write in Java?</p></div></div></div></div></div>`;
+    $('sp-x').onclick=close; $('mod').onclick=e=>{ if(e.target.id=='mod') close(); };
+    $('sp-star').onclick=async()=>{ await toggleStar(k); setTimeout(draw,300); };
+    $('sp-java').onclick=()=>{ $('sp-j').hidden=!$('sp-j').hidden; };
+    const go=d=>{ const i=order.indexOf(k); k=order[(i+d+order.length)%order.length]; draw(); };
+    $('sp-prev').onclick=()=>go(-1); $('sp-next').onclick=()=>go(1);
+  };
+  const close=()=>{ $('modal-root').innerHTML=''; document.removeEventListener('keydown',key); };
+  const key=e=>{ if(e.key=='Escape') close(); };
+  document.addEventListener('keydown',key); draw();
+}
+
+/* ---------- start-up ---------- */
+(function boot(){
+  const q=new URLSearchParams(location.search);
+  if(q.get('host')) { setTimeout(()=>$('b-teacher').click(),300); return; }
+  const saved=store.get('pq-player',null);
+  if(saved && saved.code==$('in-code').value && db){ G(saved.code).child('players/'+saved.pid).once('value').then(s=>{ if(s.exists()){ Object.assign(P,saved); startPlayer(); } }); }
+})();
+
+</script>
+</body>
+</html>
